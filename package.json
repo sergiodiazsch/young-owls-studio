@@ -13,7 +13,7 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@hookform/resolvers": "^5.2.2",
-    "@neondatabase/serverless": "^0.10.4",
+    "@neondatabase/serverless": "^1.0.2",
     "@netlify/blobs": "^10.7.0",
     "@netlify/functions": "^5.1.2",
     "@phosphor-icons/react": "^2.1.10",
