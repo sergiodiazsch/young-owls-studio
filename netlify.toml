@@ -1,0 +1,26 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@anthropic-ai/sdk", "@neondatabase/serverless"]
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Headers for SSE streaming routes — prevent CDN/proxy buffering
+[[headers]]
+  for = "/api/breakdowns/generate"
+  [headers.values]
+    X-Accel-Buffering = "no"
+    Cache-Control = "no-cache, no-transform"
+
+[[headers]]
+  for = "/api/breakdowns/generate-all"
+  [headers.values]
+    X-Accel-Buffering = "no"
+    Cache-Control = "no-cache, no-transform"
