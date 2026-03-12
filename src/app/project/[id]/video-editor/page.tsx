@@ -184,11 +184,11 @@ function pixelsToMs(px: number, scale: number): number {
 
 // ── Clip Colors ──
 const CLIP_COLORS: Record<string, string> = {
-  video: "bg-blue-600/80 border-blue-400/50 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]",
-  audio: "bg-green-600/80 border-green-400/50 hover:shadow-[0_0_10px_oklch(0.715_0.165_195/0.3)]",
-  image: "bg-purple-600/80 border-purple-400/50 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]",
-  text: "bg-yellow-600/80 border-yellow-400/50 hover:shadow-[0_0_10px_oklch(0.75_0.15_90/0.3)]",
-  subtitle: "bg-orange-600/80 border-orange-400/50 hover:shadow-[0_0_10px_oklch(0.7_0.15_55/0.3)]",
+  video: "bg-primary/80 border-primary/50 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]",
+  audio: "bg-[oklch(0.55_0.17_162/0.8)] border-[oklch(0.65_0.17_162/0.5)] hover:shadow-[0_0_10px_oklch(0.715_0.165_195/0.3)]",
+  image: "bg-[oklch(0.55_0.2_300/0.8)] border-[oklch(0.65_0.2_300/0.5)] hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]",
+  text: "bg-[oklch(0.6_0.15_85/0.8)] border-[oklch(0.7_0.15_85/0.5)] hover:shadow-[0_0_10px_oklch(0.75_0.15_90/0.3)]",
+  subtitle: "bg-[oklch(0.6_0.17_55/0.8)] border-[oklch(0.7_0.17_55/0.5)] hover:shadow-[0_0_10px_oklch(0.7_0.15_55/0.3)]",
 };
 
 // ── Filter Types & LUT Presets ──
@@ -1810,7 +1810,7 @@ function VideoEditor({
             />
             {/* Remotion badge */}
             <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 rounded px-1.5 py-0.5">
-              <MonitorPlay className="w-3 h-3 text-blue-400" />
+              <MonitorPlay className="w-3 h-3 text-primary" />
               <span className="text-[9px] text-zinc-300 font-medium">Remotion</span>
             </div>
           </div>
@@ -1931,9 +1931,9 @@ function VideoEditor({
                       ) : driveFiles.map(file => (
                         <div key={file.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent group text-xs">
                           <span className="shrink-0">
-                            {file.fileType === "video" ? <FilmStrip className="w-3.5 h-3.5 text-blue-400" /> :
-                             file.fileType === "audio" ? <MusicNote className="w-3.5 h-3.5 text-green-400" /> :
-                             <Image className="w-3.5 h-3.5 text-purple-400" />}
+                            {file.fileType === "video" ? <FilmStrip className="w-3.5 h-3.5 text-primary" /> :
+                             file.fileType === "audio" ? <MusicNote className="w-3.5 h-3.5 text-accent" /> :
+                             <Image className="w-3.5 h-3.5 text-primary/70" />}
                           </span>
                           <span className="truncate flex-1">{file.filename}</span>
                           <div className="opacity-0 group-hover:opacity-100 flex gap-1">
@@ -1956,7 +1956,7 @@ function VideoEditor({
                         <p className="text-xs text-muted-foreground text-center py-4">No voice generations yet</p>
                       ) : voiceGenerations.map(v => (
                         <div key={v.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-accent group text-xs">
-                          <MusicNote className="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5" />
+                          <MusicNote className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <span className="font-medium text-foreground">{v.character}</span>
                             <p className="text-[10px] text-muted-foreground truncate">{v.inputText.slice(0, 60)}</p>
@@ -1974,7 +1974,7 @@ function VideoEditor({
                         <p className="text-xs text-muted-foreground text-center py-4">No completed image generations</p>
                       ) : imageGenerations.map(img => (
                         <div key={img.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent group text-xs">
-                          <Image className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                          <Image className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                           <span className="truncate flex-1 text-[10px]">{img.prompt.slice(0, 50)}</span>
                           <Button size="sm" variant="ghost" className="h-5 px-1 text-[10px] opacity-0 group-hover:opacity-100 shrink-0"
                             onClick={() => img.storagePath && addGenerationClip(img.storagePath, img.prompt.slice(0, 40), "image", "image_generation", img.id)}
@@ -1989,7 +1989,7 @@ function VideoEditor({
                         <p className="text-xs text-muted-foreground text-center py-4">No completed video generations</p>
                       ) : videoGenerations.map(vid => (
                         <div key={vid.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent group text-xs">
-                          <FilmStrip className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <FilmStrip className="w-3.5 h-3.5 text-primary shrink-0" />
                           <div className="flex-1 min-w-0">
                             <span className="truncate block text-[10px]">{vid.prompt.slice(0, 50)}</span>
                             {vid.durationMs && <span className="text-[9px] text-muted-foreground">{formatTime(vid.durationMs)}</span>}
@@ -2007,7 +2007,7 @@ function VideoEditor({
                         <p className="text-xs text-muted-foreground text-center py-4">No audio studio generations</p>
                       ) : audioGenerations.map(aud => (
                         <div key={aud.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent group text-xs">
-                          <MusicNote className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <MusicNote className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                           <div className="flex-1 min-w-0">
                             <span className="truncate block text-[10px]">{aud.prompt.slice(0, 50)}</span>
                             <span className="text-[9px] text-muted-foreground">{aud.type}</span>
@@ -2510,7 +2510,7 @@ function VideoEditor({
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
                           <span className="flex-1 truncate">{m.label}</span>
                           <span className="text-muted-foreground font-mono">{formatTime(m.timeMs)}</span>
-                          <button className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300"
+                          <button className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive/80"
                             onClick={(e) => { e.stopPropagation(); removeMarker(m.id); }}>×</button>
                         </div>
                       ))}
@@ -2628,7 +2628,7 @@ function VideoEditor({
                       <p>V1: {builderResult.scenesWithAssets} visual clips, A1: {builderResult.clipsCreated - builderResult.scenesWithAssets - (builderResult.scenesWithAssets + builderResult.scenesWithoutAssets)} voice clips</p>
                       <p>Duration: {formatTime(builderResult.totalDurationMs)}</p>
                       {builderResult.scenesWithoutAssets > 0 && (
-                        <p className="text-amber-400">{builderResult.scenesWithoutAssets} scenes without visual assets</p>
+                        <p className="text-muted-foreground">{builderResult.scenesWithoutAssets} scenes without visual assets</p>
                       )}
                     </div>
                   )}
@@ -2782,9 +2782,9 @@ function VideoEditor({
                   className="h-[52px] border-b border-border/20 flex items-center gap-1 px-2 group"
                 >
                   <span className="shrink-0">
-                    {track.type === "video" ? <FilmStrip className="w-3.5 h-3.5 text-blue-400" /> :
-                     track.type === "audio" ? <MusicNote className="w-3.5 h-3.5 text-green-400" /> :
-                     <TextT className="w-3.5 h-3.5 text-yellow-400" />}
+                    {track.type === "video" ? <FilmStrip className="w-3.5 h-3.5 text-primary" /> :
+                     track.type === "audio" ? <MusicNote className="w-3.5 h-3.5 text-accent" /> :
+                     <TextT className="w-3.5 h-3.5 text-muted-foreground" />}
                   </span>
                   <span className="text-[10px] truncate flex-1 leading-tight">{track.name || `${track.type.charAt(0).toUpperCase()}${track.type.slice(1)} ${track.sortOrder + 1}`}</span>
                   {/* Volume mini-slider for audio/video tracks */}
@@ -2808,7 +2808,7 @@ function VideoEditor({
                     title={track.muted ? "Unmute" : "Mute"}
                     aria-label={track.muted ? `Unmute ${track.name}` : `Mute ${track.name}`}
                   >
-                    {track.muted ? <SpeakerX className="w-3 h-3 text-red-400" /> : <SpeakerHigh className="w-3 h-3" />}
+                    {track.muted ? <SpeakerX className="w-3 h-3 text-destructive" /> : <SpeakerHigh className="w-3 h-3" />}
                   </Button>
                   <Button
                     variant="ghost" size="sm" className="h-5 w-5 p-0"
@@ -2816,7 +2816,7 @@ function VideoEditor({
                     title={track.locked ? "Unlock" : "Lock"}
                     aria-label={track.locked ? `Unlock ${track.name}` : `Lock ${track.name}`}
                   >
-                    {track.locked ? <Lock className="w-3 h-3 text-orange-400" /> : <LockOpen className="w-3 h-3" />}
+                    {track.locked ? <Lock className="w-3 h-3 text-muted-foreground" /> : <LockOpen className="w-3 h-3" />}
                   </Button>
                   <Button
                     variant="ghost" size="sm"
@@ -2928,12 +2928,12 @@ function VideoEditor({
                 )}
                 {inPoint !== null && (
                   <div className="absolute top-0 h-full w-px bg-blue-400 pointer-events-none" style={{ left: msToPixels(inPoint, timelineScale) }}>
-                    <span className="absolute -top-0 left-1 text-[8px] text-blue-400 font-bold">I</span>
+                    <span className="absolute -top-0 left-1 text-[8px] text-primary font-bold">I</span>
                   </div>
                 )}
                 {outPoint !== null && (
                   <div className="absolute top-0 h-full w-px bg-blue-400 pointer-events-none" style={{ left: msToPixels(outPoint, timelineScale) }}>
-                    <span className="absolute -top-0 left-1 text-[8px] text-blue-400 font-bold">O</span>
+                    <span className="absolute -top-0 left-1 text-[8px] text-primary font-bold">O</span>
                   </div>
                 )}
               </div>
@@ -3150,7 +3150,7 @@ function VideoEditor({
                         </div>
                         {/* Transition indicator */}
                         {clip.transition && parseTransition(clip.transition) && (
-                          <div className="absolute top-0 right-0 bg-yellow-500/80 text-[8px] text-black font-bold px-1 rounded-bl leading-tight">
+                          <div className="absolute top-0 right-0 bg-muted text-[8px] text-foreground font-bold px-1 rounded-bl leading-tight">
                             {parseTransition(clip.transition)!.type === "dissolve" ? "DSV" : parseTransition(clip.transition)!.type === "fade-black" ? "FDE" : "WPE"}
                           </div>
                         )}
@@ -3387,7 +3387,7 @@ function VideoEditor({
                         className={`w-full text-left px-3 py-1.5 text-xs hover:bg-muted/60 flex items-center gap-2 ${currentTrans === opt.type ? "text-primary" : "text-foreground"}`}
                         onClick={() => setClipTransition(transitionMenu.clipId, opt.type)}
                       >
-                        {currentTrans === opt.type && <span className="text-yellow-400">●</span>}
+                        {currentTrans === opt.type && <span className="text-muted-foreground">●</span>}
                         {opt.label}
                       </button>
                     );
@@ -3593,7 +3593,7 @@ function VideoEditor({
 
               {/* Delete */}
               <button
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-900/50 text-red-400"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-900/50 text-destructive"
                 onClick={() => {
                   setTransitionMenu(null);
                   deleteClip(transitionMenu.clipId);

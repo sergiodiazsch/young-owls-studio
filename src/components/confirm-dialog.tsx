@@ -60,7 +60,15 @@ export function ConfirmDialog({
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading ? "..." : confirmLabel}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" className="opacity-25" />
+                  <path d="M4 12a8 8 0 018-8" className="opacity-75" />
+                </svg>
+                {confirmLabel}
+              </span>
+            ) : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -107,6 +107,7 @@ export default function AudioStudioPage() {
   // UI state
   const [panelOpen, setPanelOpen] = useState(false);
   const [filter, setFilter] = useState<GalleryFilter>("all");
+  const [deleteTarget, setDeleteTarget] = useState<GeneratedAudio | null>(null);
 
   // Fetch characters for the voice tab
   useEffect(() => {
@@ -640,7 +641,7 @@ export default function AudioStudioPage() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => handleDelete(gen)}
+                        onClick={() => setDeleteTarget(gen)}
                         className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
                         title="Delete"
                         aria-label="Delete audio"
@@ -654,7 +655,7 @@ export default function AudioStudioPage() {
                   {/* Delete for failed/generating items */}
                   {gen.status !== "completed" && (
                     <button
-                      onClick={() => handleDelete(gen)}
+                      onClick={() => setDeleteTarget(gen)}
                       className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors shrink-0"
                       title="Delete"
                       aria-label="Delete"
@@ -912,6 +913,16 @@ export default function AudioStudioPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Audio"
+        description={`"${deleteTarget?.prompt || "This audio"}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); }}
+      />
     </div>
   );
 }

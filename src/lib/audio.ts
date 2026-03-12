@@ -2,65 +2,66 @@ import ffmpeg from "fluent-ffmpeg";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { v4 as uuidv4 } from "uuid";
+import { readFile, saveFile } from "./storage";
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-
-const STORAGE_ROOT = path.join(process.cwd(), "storage");
 
 export async function padAudio(
   inputStoragePath: string,
   paddingStart: number,
   paddingEnd: number
 ): Promise<{ storagePath: string; fileSize: number }> {
-  const inputPath = path.join(STORAGE_ROOT, inputStoragePath);
-  if (!fs.existsSync(inputPath)) {
-    throw new Error(`Input file not found: ${inputStoragePath}`);
-  }
-
-  // Nothing to pad — return the original
+  // Nothing to pad — read file size from storage and return original
   if (paddingStart <= 0 && paddingEnd <= 0) {
-    const stats = fs.statSync(inputPath);
-    return { storagePath: inputStoragePath, fileSize: stats.size };
+    const buf = await readFile(inputStoragePath);
+    return { storagePath: inputStoragePath, fileSize: buf.length };
   }
 
-  const dir = path.dirname(inputPath);
-  const outputName = `padded-${uuidv4()}.mp3`;
-  const outputPath = path.join(dir, outputName);
+  // Download source file to tmp for ffmpeg processing
+  const tmpDir = path.join(os.tmpdir(), `pad-${uuidv4()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const inputPath = path.join(tmpDir, "input.mp3");
+  const outputPath = path.join(tmpDir, "output.mp3");
 
-  const filters: string[] = [];
+  try {
+    const inputBuffer = await readFile(inputStoragePath);
+    fs.writeFileSync(inputPath, inputBuffer);
 
-  if (paddingStart > 0) {
-    filters.push(`adelay=${Math.round(paddingStart * 1000)}|${Math.round(paddingStart * 1000)}`);
-  }
+    const filters: string[] = [];
 
-  if (paddingEnd > 0) {
-    filters.push(`apad=pad_dur=${paddingEnd}`);
-  }
-
-  return new Promise((resolve, reject) => {
-    let cmd = ffmpeg(inputPath);
-
-    if (filters.length > 0) {
-      cmd = cmd.audioFilters(filters);
+    if (paddingStart > 0) {
+      filters.push(`adelay=${Math.round(paddingStart * 1000)}|${Math.round(paddingStart * 1000)}`);
     }
 
-    cmd
-      .audioCodec("libmp3lame")
-      .audioBitrate(128)
-      .output(outputPath)
-      .on("end", () => {
-        const stats = fs.statSync(outputPath);
-        const relativePath = path.relative(STORAGE_ROOT, outputPath);
-        resolve({ storagePath: relativePath, fileSize: stats.size });
-      })
-      .on("error", (err) => {
-        // Clean up partial output file
-        if (fs.existsSync(outputPath)) {
-          try { fs.unlinkSync(outputPath); } catch {}
-        }
-        reject(new Error(`FFmpeg error: ${err.message}`));
-      })
-      .run();
-  });
+    if (paddingEnd > 0) {
+      filters.push(`apad=pad_dur=${paddingEnd}`);
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let cmd = ffmpeg(inputPath);
+
+      if (filters.length > 0) {
+        cmd = cmd.audioFilters(filters);
+      }
+
+      cmd
+        .audioCodec("libmp3lame")
+        .audioBitrate(128)
+        .output(outputPath)
+        .on("end", () => resolve())
+        .on("error", (err) => reject(new Error(`FFmpeg error: ${err.message}`)))
+        .run();
+    });
+
+    // Read output and save back to storage
+    const outputBuffer = fs.readFileSync(outputPath);
+    const projectId = Number(inputStoragePath.split("/")[0]) || 0;
+    const result = await saveFile(projectId, `padded-${uuidv4()}.mp3`, outputBuffer);
+    return result;
+  } finally {
+    // Clean up tmp files
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+  }
 }

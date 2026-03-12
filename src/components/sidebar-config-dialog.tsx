@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { SidebarItem, SidebarGroup } from "@/hooks/use-sidebar-config";
 
 interface Props {
@@ -25,6 +27,8 @@ export function SidebarConfigDialog({
   onMoveItem,
   onReset,
 }: Props) {
+  const [confirmReset, setConfirmReset] = useState(false);
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -63,6 +67,7 @@ export function SidebarConfigDialog({
                       <button
                         onClick={() => onMoveItem(item.id, "up")}
                         disabled={idx === 0}
+                        aria-label={`Move ${item.label} up`}
                         className="text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                       >
                         <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -72,6 +77,7 @@ export function SidebarConfigDialog({
                       <button
                         onClick={() => onMoveItem(item.id, "down")}
                         disabled={idx === group.items.length - 1}
+                        aria-label={`Move ${item.label} down`}
                         className="text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                       >
                         <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -89,6 +95,7 @@ export function SidebarConfigDialog({
                     <Switch
                       checked={item.visible}
                       onCheckedChange={() => onToggleVisibility(item.id)}
+                      aria-label={`Toggle ${item.label} visibility`}
                     />
                   </div>
                 ))}
@@ -100,10 +107,20 @@ export function SidebarConfigDialog({
         <Separator />
 
         <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={onReset}>
+          <Button variant="ghost" size="sm" onClick={() => setConfirmReset(true)}>
             Reset to Defaults
           </Button>
         </div>
+
+        <ConfirmDialog
+          open={confirmReset}
+          onOpenChange={setConfirmReset}
+          title="Reset Sidebar"
+          description="This will restore all sidebar items to their original order and visibility. Your customizations will be lost."
+          confirmLabel="Reset"
+          variant="destructive"
+          onConfirm={onReset}
+        />
       </DialogContent>
     </Dialog>
   );

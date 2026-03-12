@@ -59,6 +59,10 @@ export default function SceneDetailPage() {
   // Link file dialog
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [linkTab, setLinkTab] = useState<"drive" | "upload">("drive");
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [driveSearch, setDriveSearch] = useState("");
 
   function fetchScene(signal?: AbortSignal) {
     fetch(`/api/scenes/${sceneId}`, signal ? { signal } : undefined)
@@ -139,6 +143,39 @@ export default function SceneDetailPage() {
     toast.success("File linked");
     setLinkDialogOpen(false);
     fetchScene();
+  }
+
+  async function handleUploadAndLink(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("projectId", projectId);
+
+      const uploadRes = await fetch("/api/drive/files/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error || "Upload failed");
+      }
+      const driveFile = await uploadRes.json();
+
+      await fetch("/api/drive/scene-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneId: Number(sceneId), fileId: driveFile.id }),
+      });
+
+      toast.success("File uploaded & linked");
+      setLinkDialogOpen(false);
+      fetchScene();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
   if (loading) {
@@ -280,6 +317,7 @@ export default function SceneDetailPage() {
                 charVoiceMap={charVoiceMap}
                 generations={voiceGenerations}
                 onRefresh={fetchVoiceGenerations}
+                sceneHeading={scene.heading}
               />
             )}
           </TabsContent>
@@ -307,6 +345,7 @@ export default function SceneDetailPage() {
               charVoiceMap={charVoiceMap}
               generations={voiceGenerations}
               onRefresh={fetchVoiceGenerations}
+              sceneHeading={scene.heading}
             />
           )}
         </div>
@@ -330,41 +369,186 @@ export default function SceneDetailPage() {
       />
 
       {/* Link File Dialog */}
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+      <Dialog open={linkDialogOpen} onOpenChange={(open) => { setLinkDialogOpen(open); if (!open) { setLinkTab("drive"); setDriveSearch(""); setDragOver(false); } }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Link File from Drive</DialogTitle></DialogHeader>
-          <div className="space-y-1.5 max-h-72 overflow-y-auto pt-2">
-            {driveFiles.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground">No files in drive yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Upload files in the Asset Drive first</p>
-              </div>
-            ) : driveFiles.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => handleLinkFile(f.id)}
-                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent transition-colors flex items-center gap-3"
-              >
-                {f.fileType === "image" ? (
-                  <Image src={`/api/drive/files/${f.id}`} alt="" width={40} height={40} className="rounded-md object-cover" />
-                ) : (
-                  <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
-                    {f.fileType === "audio" ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
-                    ) : f.fileType === "video" ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M10 8l6 4-6 4V8z" /></svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6" /></svg>
-                    )}
+          <DialogHeader><DialogTitle>Link Asset to Scene</DialogTitle></DialogHeader>
+
+          {/* Tabs */}
+          <div className="flex gap-1 p-0.5 bg-muted/60 rounded-lg mb-2" role="tablist" aria-label="File source">
+            <button
+              role="tab"
+              aria-selected={linkTab === "drive"}
+              onClick={() => setLinkTab("drive")}
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                linkTab === "drive" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M2 4a1 1 0 011-1h4l2 2h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" />
+                </svg>
+                From Drive
+              </span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={linkTab === "upload"}
+              onClick={() => setLinkTab("upload")}
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                linkTab === "upload" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 16V4M12 4L8 8M12 4L16 8" />
+                  <path d="M2 17v3a2 2 0 002 2h16a2 2 0 002-2v-3" />
+                </svg>
+                Upload File
+              </span>
+            </button>
+          </div>
+
+          {/* Drive tab */}
+          {linkTab === "drive" && (() => {
+            const linkedIds = new Set(scene?.linkedFiles?.map((f) => f.id) || []);
+            const filtered = driveFiles.filter((f) =>
+              !driveSearch || f.filename.toLowerCase().includes(driveSearch.toLowerCase())
+            );
+            return (
+              <div className="space-y-2">
+                {driveFiles.length > 5 && (
+                  <div className="relative">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search files..."
+                      value={driveSearch}
+                      onChange={(e) => setDriveSearch(e.target.value)}
+                      className="w-full text-sm pl-8 pr-3 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm truncate block">{f.filename}</span>
-                  <span className="text-[10px] text-muted-foreground">{f.fileType}</span>
+                <div className="space-y-1 max-h-72 overflow-y-auto">
+                  {filtered.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-muted-foreground">{driveSearch ? "No matching files" : "No files in drive yet"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {driveSearch ? "Try a different search term" : "Upload files in the Asset Drive first, or use the Upload tab"}
+                      </p>
+                    </div>
+                  ) : filtered.map((f) => {
+                    const alreadyLinked = linkedIds.has(f.id);
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => !alreadyLinked && handleLinkFile(f.id)}
+                        disabled={alreadyLinked}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-colors flex items-center gap-3 ${
+                          alreadyLinked
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        {f.fileType === "image" ? (
+                          <Image src={`/api/drive/files/${f.id}`} alt="" width={40} height={40} className="rounded-md object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                            {f.fileType === "audio" ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                            ) : f.fileType === "video" ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M10 8l6 4-6 4V8z" /></svg>
+                            ) : (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6" /></svg>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm truncate block">{f.filename}</span>
+                          <span className="text-[10px] text-muted-foreground">{f.fileType}</span>
+                        </div>
+                        {alreadyLinked && (
+                          <Badge variant="outline" className="text-[9px] shrink-0">Linked</Badge>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              </button>
-            ))}
-          </div>
+              </div>
+            );
+          })()}
+
+          {/* Upload tab */}
+          {linkTab === "upload" && (
+            <div className="py-2">
+              <label
+                htmlFor="scene-file-upload"
+                className={`flex flex-col items-center justify-center gap-3 py-10 px-4 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${
+                  uploading
+                    ? "border-primary/40 bg-primary/5"
+                    : dragOver
+                      ? "border-primary bg-primary/10 scale-[1.01] shadow-lg shadow-primary/10"
+                      : "border-border hover:border-primary/50 hover:bg-accent/30"
+                }`}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleUploadAndLink(file);
+                }}
+              >
+                {uploading ? (
+                  <>
+                    <svg className="animate-spin h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" className="opacity-25" />
+                      <path d="M4 12a8 8 0 018-8" className="opacity-75" />
+                    </svg>
+                    <p className="text-sm text-muted-foreground">Uploading & linking...</p>
+                  </>
+                ) : dragOver ? (
+                  <>
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
+                        <path d="M12 16V4M12 4L8 8M12 4L16 8" />
+                        <path d="M2 17v3a2 2 0 002 2h16a2 2 0 002-2v-3" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-primary">Release to upload</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
+                        <path d="M12 16V4M12 4L8 8M12 4L16 8" />
+                        <path d="M2 17v3a2 2 0 002 2h16a2 2 0 002-2v-3" />
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium">Drop file here or click to browse</p>
+                      <p className="text-xs text-muted-foreground mt-1">Images, audio, video, or documents (max 100MB)</p>
+                    </div>
+                  </>
+                )}
+                <input
+                  id="scene-file-upload"
+                  type="file"
+                  className="hidden"
+                  accept="image/*,audio/*,video/*,.pdf"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadAndLink(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -520,7 +704,7 @@ function SceneFiles({ linkedFiles, onUnlink, onLinkFile, onThumbnailClick, proje
               </svg>
             </div>
             <p className="text-sm text-muted-foreground">No files linked to this scene</p>
-            <p className="text-xs text-muted-foreground mt-1">Link assets from the Drive</p>
+            <p className="text-xs text-muted-foreground mt-1">Link assets from Drive or upload a new file</p>
           </CardContent>
         </Card>
       ) : (
@@ -553,7 +737,8 @@ function SceneFiles({ linkedFiles, onUnlink, onLinkFile, onThumbnailClick, proje
                     </button>
                     <button
                       onClick={() => onUnlink(f.linkId)}
-                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600/80"
+                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-destructive/80"
+                      aria-label={`Unlink ${f.filename}`}
                       title="Unlink file"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -590,7 +775,8 @@ function SceneFiles({ linkedFiles, onUnlink, onLinkFile, onThumbnailClick, proje
                     )}
                     <button
                       onClick={() => onUnlink(f.linkId)}
-                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600/80"
+                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-md bg-black/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-destructive/80"
+                      aria-label={`Unlink ${f.filename}`}
                       title="Unlink file"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -608,24 +794,206 @@ function SceneFiles({ linkedFiles, onUnlink, onLinkFile, onThumbnailClick, proje
   );
 }
 
-function VoiceSection({ dialogues, projectId, sceneId, charVoiceMap, generations, onRefresh }: {
+function VoiceSection({ dialogues, projectId, sceneId, charVoiceMap, generations, onRefresh, sceneHeading }: {
   dialogues: Dialogue[];
   projectId: string;
   sceneId: string;
   charVoiceMap: Record<string, string | null>;
   generations: VoiceGeneration[];
   onRefresh: () => void;
+  sceneHeading?: string;
 }) {
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkItems, setBulkItems] = useState<Map<number, { text: string; voiceId: string }>>(new Map());
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Build scene context string for AI tag suggestions
+  const sceneContext = [
+    sceneHeading,
+    ...dialogues.slice(0, 5).map((d) => `${d.character}: "${d.line}"`),
+  ].filter(Boolean).join("\n");
+
+  // Initialize bulk items from dialogues that have voices assigned
+  function initBulkItems() {
+    const items = new Map<number, { text: string; voiceId: string }>();
+    for (const d of dialogues) {
+      const voice = charVoiceMap[d.character.toUpperCase()];
+      if (voice) {
+        items.set(d.id, { text: d.line, voiceId: voice });
+      }
+    }
+    setBulkItems(items);
+    setBulkMode(true);
+  }
+
+  function removeBulkItem(dialogueId: number) {
+    setBulkItems((prev) => {
+      const next = new Map(prev);
+      next.delete(dialogueId);
+      return next;
+    });
+  }
+
+  function updateBulkText(dialogueId: number, text: string) {
+    setBulkItems((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(dialogueId);
+      if (existing) {
+        next.set(dialogueId, { ...existing, text });
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkGenerate() {
+    if (bulkItems.size === 0) {
+      toast.error("No items to generate");
+      return;
+    }
+    setBulkGenerating(true);
+    const total = bulkItems.size;
+    setBulkProgress({ done: 0, total });
+    try {
+      const items = Array.from(bulkItems.entries()).map(([dialogueId, item]) => ({
+        dialogueId,
+        voiceId: item.voiceId,
+        text: item.text,
+      }));
+
+      const res = await fetch("/api/voices/generate-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: Number(projectId),
+          sceneId: Number(sceneId),
+          items,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Bulk generation failed");
+
+      setBulkProgress({ done: data.successCount + data.errorCount, total });
+      toast.success(`Generated ${data.successCount} voice${data.successCount !== 1 ? "s" : ""}${data.errorCount > 0 ? ` (${data.errorCount} failed)` : ""}`);
+      setBulkMode(false);
+      onRefresh();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Bulk generation failed");
+    }
+    setBulkGenerating(false);
+    setBulkProgress(null);
+  }
+
+  // Count dialogues that can be bulk-generated
+  const eligibleForBulk = dialogues.filter((d) => charVoiceMap[d.character.toUpperCase()]).length;
+
   return (
     <Card>
       <CardContent className="p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
-            <path d="M8 1v6M5 4a3 3 0 006 0M4 8a4 4 0 008 0" /><path d="M8 11v4M6 15h4" />
-          </svg>
-          <h3 className="font-semibold text-sm">Voice Generation</h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
+              <path d="M8 1v6M5 4a3 3 0 006 0M4 8a4 4 0 008 0" /><path d="M8 11v4M6 15h4" />
+            </svg>
+            <h3 className="font-semibold text-sm">Voice Generation</h3>
+          </div>
+          {eligibleForBulk > 0 && !bulkMode && (
+            <Button variant="outline" size="sm" className="text-[10px] h-7 gap-1" onClick={initBulkItems}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M2 4h12M2 8h12M2 12h8" />
+              </svg>
+              Generate All ({eligibleForBulk})
+            </Button>
+          )}
         </div>
         <Separator />
+
+        {/* Bulk mode: review & edit before generating */}
+        {bulkMode && (
+          <div className="space-y-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium">Bulk Voice Generation</p>
+                <p className="text-[10px] text-muted-foreground">{bulkItems.size} dialogue{bulkItems.size !== 1 ? "s" : ""} queued</p>
+              </div>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6" onClick={() => setBulkMode(false)}>
+                Cancel
+              </Button>
+            </div>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {Array.from(bulkItems.entries()).map(([dialogueId, item]) => {
+                const dialogue = dialogues.find((d) => d.id === dialogueId);
+                if (!dialogue) return null;
+                return (
+                  <div key={dialogueId} className="flex items-start gap-2 p-2 rounded-md bg-background border">
+                    <div className="flex-1 min-w-0">
+                      <Badge variant="secondary" className="text-[9px] mb-1">{dialogue.character}</Badge>
+                      <textarea
+                        value={item.text}
+                        onChange={(e) => updateBulkText(dialogueId, e.target.value)}
+                        className="w-full text-[11px] font-mono bg-muted/50 border border-border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 p-1.5 min-h-[32px] mt-1"
+                        rows={2}
+                      />
+                    </div>
+                    <button
+                      onClick={() => removeBulkItem(dialogueId)}
+                      className="shrink-0 p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label={`Remove ${dialogue.character} from bulk generation`}
+                      title="Remove from queue"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 4l8 8M12 4l-8 8" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {bulkItems.size === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">All items removed. Cancel or add back.</p>
+            )}
+
+            <div className="space-y-2">
+              {bulkGenerating && bulkProgress && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>Generating voices...</span>
+                    <span>{bulkProgress.done}/{bulkProgress.total}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: `${Math.max(5, (bulkProgress.done / bulkProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={handleBulkGenerate}
+                disabled={bulkGenerating || bulkItems.size === 0}
+              >
+                {bulkGenerating ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" className="opacity-25" />
+                      <path d="M4 12a8 8 0 018-8" className="opacity-75" />
+                    </svg>
+                    Generating...
+                  </span>
+                ) : (
+                  `Generate ${bulkItems.size} Voice${bulkItems.size !== 1 ? "s" : ""}`
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Individual dialogue panels */}
         {dialogues.map((d) => (
           <DialogueVoicePanel
             key={d.id}
@@ -635,6 +1003,7 @@ function VoiceSection({ dialogues, projectId, sceneId, charVoiceMap, generations
             voiceId={charVoiceMap[d.character.toUpperCase()]}
             generations={generations}
             onRefresh={onRefresh}
+            sceneContext={sceneContext}
           />
         ))}
       </CardContent>

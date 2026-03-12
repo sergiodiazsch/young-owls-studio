@@ -51,7 +51,8 @@ function NavLinks({ projectId, pathname, groupedItems, onNavigate, collapsed }: 
                     href={link.href}
                     onClick={onNavigate}
                     title={collapsed ? link.label : undefined}
-                    className={`nav-link-icon-shift flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ease-out relative overflow-hidden whitespace-nowrap ${
+                    aria-current={isActive ? "page" : undefined}
+                    className={`nav-link-icon-shift flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ease-out relative overflow-hidden whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
                       isActive
                         ? "bg-primary/10 text-primary shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] ring-1 ring-primary/20"
                         : "text-muted-foreground hover:bg-primary/8 hover:text-foreground hover:translate-x-0.5"
@@ -174,9 +175,25 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
   // GSAP collapse/expand animation
   const handleToggle = useCallback(() => {
     if (animatingRef.current || !sidebarRef.current) return;
-    animatingRef.current = true;
 
     const next = !collapsed;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Skip animation for reduced-motion preference
+    if (reducedMotion) {
+      if (next) {
+        sidebarRef.current.style.width = `${SIDEBAR_W_COLLAPSED}px`;
+        setCollapsed(true);
+        localStorage.setItem(COLLAPSED_KEY, "true");
+      } else {
+        sidebarRef.current.style.width = `${SIDEBAR_W}px`;
+        setCollapsed(false);
+        localStorage.setItem(COLLAPSED_KEY, "false");
+      }
+      return;
+    }
+
+    animatingRef.current = true;
     const labels = sidebarRef.current.querySelectorAll(".sb-label");
 
     if (next) {
@@ -315,7 +332,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
         {/* ── Collapse toggle button ── */}
         <button
           onClick={handleToggle}
-          className="absolute -right-3 top-7 z-50 w-6 h-6 rounded-full border border-border/40 bg-card/90 backdrop-blur-sm shadow-[0_0_8px_oklch(0.585_0.233_264/0.1)] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.2)] transition-all duration-200"
+          className="absolute -right-3 top-7 z-50 w-6 h-6 rounded-full border border-border/40 bg-card/90 backdrop-blur-sm shadow-[0_0_8px_oklch(0.585_0.233_264/0.1)] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.2)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

@@ -69,9 +69,18 @@ interface CharacterDetails {
   excerpts: { line: string; parenthetical: string | null; sceneHeading: string }[];
 }
 
-// ── Avatar color from character name (deterministic hash) ──
+// ── Avatar color from character name (deterministic hash, oklch palette) ──
 function getCharacterColor(name: string): string {
-  const colors = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+  const colors = [
+    "oklch(0.75 0.15 85)",    // warm gold
+    "oklch(0.65 0.2 27)",     // coral
+    "oklch(0.585 0.233 264)", // indigo (primary)
+    "oklch(0.72 0.17 162)",   // teal
+    "oklch(0.65 0.2 300)",    // purple
+    "oklch(0.65 0.2 340)",    // rose
+    "oklch(0.715 0.165 195)", // cyan (accent)
+    "oklch(0.7 0.17 55)",     // orange
+  ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];

@@ -61,14 +61,14 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  structure: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25",
-  pacing: "bg-amber-500/15 text-amber-300 border-amber-500/25",
-  character: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
-  dialogue: "bg-cyan-500/15 text-cyan-300 border-cyan-500/25",
-  continuity: "bg-rose-500/15 text-rose-300 border-rose-500/25",
-  theme: "bg-purple-500/15 text-purple-300 border-purple-500/25",
-  logic: "bg-red-500/15 text-red-300 border-red-500/25",
-  tone: "bg-violet-500/15 text-violet-300 border-violet-500/25",
+  structure: "bg-primary/15 text-primary border-primary/25",
+  pacing: "bg-[oklch(0.75_0.15_85/0.15)] text-[oklch(0.75_0.15_85)] border-[oklch(0.75_0.15_85/0.25)]",
+  character: "bg-[oklch(0.72_0.17_162/0.15)] text-[oklch(0.72_0.17_162)] border-[oklch(0.72_0.17_162/0.25)]",
+  dialogue: "bg-accent/15 text-accent border-accent/25",
+  continuity: "bg-[oklch(0.65_0.2_15/0.15)] text-[oklch(0.65_0.2_15)] border-[oklch(0.65_0.2_15/0.25)]",
+  theme: "bg-[oklch(0.65_0.2_300/0.15)] text-[oklch(0.65_0.2_300)] border-[oklch(0.65_0.2_300/0.25)]",
+  logic: "bg-destructive/15 text-destructive border-destructive/25",
+  tone: "bg-[oklch(0.6_0.22_290/0.15)] text-[oklch(0.6_0.22_290)] border-[oklch(0.6_0.22_290/0.25)]",
 };
 
 // ── Status Badge ──
@@ -248,14 +248,14 @@ function IssueCard({
       : "";
 
   const CATEGORY_BAR_COLORS: Record<string, string> = {
-    structure: "bg-indigo-500",
-    pacing: "bg-amber-500",
-    character: "bg-emerald-500",
-    dialogue: "bg-cyan-500",
-    continuity: "bg-rose-500",
-    theme: "bg-purple-500",
-    logic: "bg-red-500",
-    tone: "bg-violet-500",
+    structure: "bg-primary",
+    pacing: "bg-[oklch(0.75_0.15_85)]",
+    character: "bg-[oklch(0.72_0.17_162)]",
+    dialogue: "bg-accent",
+    continuity: "bg-[oklch(0.65_0.2_15)]",
+    theme: "bg-[oklch(0.65_0.2_300)]",
+    logic: "bg-destructive",
+    tone: "bg-[oklch(0.6_0.22_290)]",
   };
 
   const isAppliedOrDismissed = issue.isResolved || isDismissed;
@@ -422,6 +422,8 @@ export default function ScriptDoctorPage() {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisWithIssues | null>(null);
   const [parsedResult, setParsedResult] = useState<AnalysisResult | null>(null);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [issueSearch, setIssueSearch] = useState("");
   const [historyList, setHistoryList] = useState<ScriptAnalysis[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [deleteAnalysisTarget, setDeleteAnalysisTarget] = useState<number | null>(null);
@@ -585,6 +587,8 @@ export default function ScriptDoctorPage() {
     setParsedResult(null);
     setCurrentAnalysis(null);
     setSeverityFilter("all");
+    setCategoryFilter("all");
+    setIssueSearch("");
     setPageView("detail");
 
     try {
@@ -776,11 +780,20 @@ export default function ScriptDoctorPage() {
     }
   };
 
-  // ── Filter issues by severity ──
+  // ── Filter issues by severity, category, and search ──
 
   const filteredIssues = currentAnalysis?.issues.filter((iss) => {
-    if (severityFilter === "all") return true;
-    return iss.severity === severityFilter;
+    if (severityFilter !== "all" && iss.severity !== severityFilter) return false;
+    if (categoryFilter !== "all" && iss.category !== categoryFilter) return false;
+    if (issueSearch) {
+      const q = issueSearch.toLowerCase();
+      return (
+        iss.description?.toLowerCase().includes(q) ||
+        iss.suggestion?.toLowerCase().includes(q) ||
+        iss.category?.toLowerCase().includes(q)
+      );
+    }
+    return true;
   }) ?? [];
 
   // ── Issue counts by severity ──
@@ -792,6 +805,12 @@ export default function ScriptDoctorPage() {
     minor: currentAnalysis?.issues.filter((i) => i.severity === "minor").length ?? 0,
     suggestion: currentAnalysis?.issues.filter((i) => i.severity === "suggestion").length ?? 0,
   };
+
+  // ── Unique categories from current analysis ──
+  const issueCategories = useMemo(() => {
+    if (!currentAnalysis?.issues) return [];
+    return [...new Set(currentAnalysis.issues.map((i) => i.category).filter(Boolean))];
+  }, [currentAnalysis?.issues]);
 
   // ── Whether we have results to show ──
   const hasResults = parsedResult && currentAnalysis?.status === "completed" && !analyzing;
@@ -1192,6 +1211,32 @@ export default function ScriptDoctorPage() {
                   </span>
                 </div>
 
+                {/* Search + category filter */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search issues..."
+                      value={issueSearch}
+                      onChange={(e) => setIssueSearch(e.target.value)}
+                      className="w-full text-sm pl-8 pr-3 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                  </div>
+                  {issueCategories.length > 1 && (
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="text-xs px-2 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    >
+                      <option value="all">All categories</option>
+                      {issueCategories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
                 <Tabs
                   value={severityFilter}
                   onValueChange={(v) => setSeverityFilter(v as SeverityFilter)}
@@ -1217,9 +1262,11 @@ export default function ScriptDoctorPage() {
                   <div className="mt-3 space-y-3">
                     {filteredIssues.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-8">
-                        {severityFilter === "all"
-                          ? "No issues found - your script is looking great!"
-                          : `No ${severityFilter} issues found.`}
+                        {issueSearch
+                          ? `No issues matching "${issueSearch}"`
+                          : severityFilter === "all"
+                            ? "No issues found - your script is looking great!"
+                            : `No ${severityFilter} issues found.`}
                       </p>
                     ) : (
                       filteredIssues.map((issue) => (

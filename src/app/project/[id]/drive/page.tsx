@@ -105,14 +105,14 @@ const FLAG_COLORS = [
 /* ── Tag colors ── */
 
 const TAG_COLORS: Record<string, string> = {
-  red: "bg-red-500/15 text-red-400 border-red-500/20",
-  orange: "bg-orange-500/15 text-orange-400 border-orange-500/20",
-  yellow: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
-  green: "bg-green-500/15 text-green-400 border-green-500/20",
-  blue: "bg-blue-500/15 text-blue-400 border-blue-500/20",
-  purple: "bg-purple-500/15 text-purple-400 border-purple-500/20",
-  pink: "bg-pink-500/15 text-pink-400 border-pink-500/20",
-  gray: "bg-white/10 text-white/60 border-white/10",
+  red: "bg-destructive/15 text-destructive border-destructive/20",
+  orange: "bg-[oklch(0.7_0.17_55/0.15)] text-[oklch(0.7_0.17_55)] border-[oklch(0.7_0.17_55/0.2)]",
+  yellow: "bg-[oklch(0.75_0.15_85/0.15)] text-[oklch(0.75_0.15_85)] border-[oklch(0.75_0.15_85/0.2)]",
+  green: "bg-[oklch(0.72_0.17_162/0.15)] text-[oklch(0.72_0.17_162)] border-[oklch(0.72_0.17_162/0.2)]",
+  blue: "bg-primary/15 text-primary border-primary/20",
+  purple: "bg-[oklch(0.65_0.2_300/0.15)] text-[oklch(0.65_0.2_300)] border-[oklch(0.65_0.2_300/0.2)]",
+  pink: "bg-[oklch(0.65_0.2_340/0.15)] text-[oklch(0.65_0.2_340)] border-[oklch(0.65_0.2_340/0.2)]",
+  gray: "bg-muted text-muted-foreground border-border",
 };
 
 function tagColor(tag: string): string {
@@ -723,7 +723,7 @@ export default function DrivePage() {
 
                 {/* Folder card body */}
                 <div className="flex flex-col items-center pt-7 pb-4 px-3">
-                  <div className="w-10 h-10 flex items-center justify-center text-amber-500 dark:text-amber-400 mb-2">
+                  <div className="w-10 h-10 flex items-center justify-center text-muted-foreground mb-2">
                     <FolderIcon name={folder.icon || "folder"} size={32} />
                   </div>
                   <p className="text-[13px] font-medium text-center leading-tight line-clamp-2">{folder.name}</p>
