@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -917,7 +918,7 @@ export default function AudioStudioPage() {
       {/* Delete confirmation */}
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open: boolean) => { if (!open) setDeleteTarget(null); }}
         title="Delete Audio"
         description={`"${deleteTarget?.prompt || "This audio"}" will be permanently deleted.`}
         confirmLabel="Delete"

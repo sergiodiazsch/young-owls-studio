@@ -789,7 +789,7 @@ export default function ScriptDoctorPage() {
       const q = issueSearch.toLowerCase();
       return (
         iss.description?.toLowerCase().includes(q) ||
-        iss.suggestion?.toLowerCase().includes(q) ||
+        iss.recommendation?.toLowerCase().includes(q) ||
         iss.category?.toLowerCase().includes(q)
       );
     }
