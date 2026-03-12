@@ -37,8 +37,8 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json(result);
-  } catch (err) {
-    logger.error("GET /api/scenes/review", err);
+  } catch (err: unknown) {
+    logger.error("GET /api/scenes/review", { error: err instanceof Error ? err.message : String(err) });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

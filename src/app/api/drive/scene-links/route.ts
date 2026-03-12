@@ -73,8 +73,8 @@ export async function PATCH(req: Request) {
     }
     const updated = await updateSceneFileLinkReviewStatus(Number(id), reviewStatus);
     return NextResponse.json(updated);
-  } catch (err) {
-    logger.error("PATCH /api/drive/scene-links", err);
+  } catch (err: unknown) {
+    logger.error("PATCH /api/drive/scene-links", { error: err instanceof Error ? err.message : String(err) });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
