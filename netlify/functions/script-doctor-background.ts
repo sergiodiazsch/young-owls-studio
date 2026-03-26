@@ -9,28 +9,97 @@ import Anthropic from "@anthropic-ai/sdk";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type HandlerEvent = { body: string | null; [key: string]: any };
 
-/* ── Tool definition (mirrors claude-script-doctor.ts) ── */
+/* ── Tool definition (must match claude-script-doctor.ts exactly) ── */
 const SCRIPT_ANALYSIS_TOOL: Anthropic.Tool = {
   name: "script_analysis",
-  description: "Analyze a screenplay and identify issues, strengths, and recommendations.",
+  description: "Provide a comprehensive script analysis with scores, structural breakdown, pacing assessment, character arcs, dialogue quality, themes, and issues.",
   input_schema: {
     type: "object" as const,
-    required: ["summary", "overallScore", "issues", "strengths"],
+    required: ["overallScore", "logline", "synopsis", "structure", "pacing", "characters", "dialogue", "themes", "issues", "moodAndColor"],
     properties: {
-      summary: { type: "string", description: "2-3 paragraph executive summary of the analysis" },
-      overallScore: { type: "number", description: "Score from 1-10" },
-      paceScore: { type: "number" },
-      characterScore: { type: "number" },
-      dialogueScore: { type: "number" },
-      structureScore: { type: "number" },
-      originalityScore: { type: "number" },
-      issues: {
+      overallScore: { type: "number", description: "Overall screenplay quality score from 0-100" },
+      logline: { type: "string", description: "A concise one-sentence logline for the screenplay" },
+      synopsis: { type: "string", description: "A 2-4 sentence synopsis of the story" },
+      structure: {
+        type: "object",
+        required: ["score", "actBreaks", "notes"],
+        properties: {
+          score: { type: "number", description: "Structure score from 0-100" },
+          actBreaks: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["act", "startsAtScene", "endsAtScene", "assessment"],
+              properties: {
+                act: { type: "number" },
+                startsAtScene: { type: "number" },
+                endsAtScene: { type: "number" },
+                assessment: { type: "string" },
+              },
+            },
+          },
+          incitingIncident: { type: "object", properties: { sceneId: { type: "number" }, assessment: { type: "string" } } },
+          midpoint: { type: "object", properties: { sceneId: { type: "number" }, assessment: { type: "string" } } },
+          climax: { type: "object", properties: { sceneId: { type: "number" }, assessment: { type: "string" } } },
+          resolution: { type: "object", properties: { sceneId: { type: "number" }, assessment: { type: "string" } } },
+          notes: { type: "string" },
+        },
+      },
+      pacing: {
+        type: "object",
+        required: ["score", "slowSections", "rushedSections", "tensionCurve", "notes"],
+        properties: {
+          score: { type: "number", description: "Pacing score from 0-100" },
+          slowSections: { type: "array", items: { type: "object", required: ["fromScene", "toScene", "reason"], properties: { fromScene: { type: "number" }, toScene: { type: "number" }, reason: { type: "string" } } } },
+          rushedSections: { type: "array", items: { type: "object", required: ["fromScene", "toScene", "reason"], properties: { fromScene: { type: "number" }, toScene: { type: "number" }, reason: { type: "string" } } } },
+          tensionCurve: { type: "array", description: "Tension level (0-100) for each scene", items: { type: "object", required: ["sceneNumber", "tension"], properties: { sceneNumber: { type: "number" }, tension: { type: "number" } } } },
+          notes: { type: "string" },
+        },
+      },
+      characters: {
         type: "array",
+        description: "Analysis of each major character",
         items: {
           type: "object",
-          required: ["category", "severity", "title", "description", "recommendation"],
+          required: ["name", "arcScore", "hasArc", "development", "strengths", "weaknesses"],
           properties: {
-            category: { type: "string", enum: ["structure", "character", "dialogue", "pacing", "plot", "theme", "tone", "worldbuilding", "technical"] },
+            name: { type: "string" },
+            arcScore: { type: "number", description: "Character arc quality score 0-100" },
+            hasArc: { type: "boolean" },
+            introduction: { type: "object", properties: { sceneId: { type: "number" }, effective: { type: "boolean" }, notes: { type: "string" } } },
+            development: { type: "string" },
+            strengths: { type: "array", items: { type: "string" } },
+            weaknesses: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+      dialogue: {
+        type: "object",
+        required: ["score", "voiceDistinctness", "onTheNose", "highlights", "notes"],
+        properties: {
+          score: { type: "number", description: "Dialogue quality score 0-100" },
+          voiceDistinctness: { type: "number", description: "How distinct character voices are, 0-100" },
+          onTheNose: { type: "array", items: { type: "object", required: ["dialogueId", "sceneId", "character", "line", "note"], properties: { dialogueId: { type: "number" }, sceneId: { type: "number" }, character: { type: "string" }, line: { type: "string" }, note: { type: "string" } } } },
+          highlights: { type: "array", items: { type: "object", required: ["dialogueId", "character", "line", "note"], properties: { dialogueId: { type: "number" }, character: { type: "string" }, line: { type: "string" }, note: { type: "string" } } } },
+          notes: { type: "string" },
+        },
+      },
+      themes: {
+        type: "object",
+        required: ["identified", "notes"],
+        properties: {
+          identified: { type: "array", items: { type: "object", required: ["theme", "strength", "scenes"], properties: { theme: { type: "string" }, strength: { type: "string", enum: ["strong", "moderate", "subtle"] }, scenes: { type: "array", items: { type: "number" } } } } },
+          notes: { type: "string" },
+        },
+      },
+      issues: {
+        type: "array",
+        description: "Specific issues found in the screenplay",
+        items: {
+          type: "object",
+          required: ["category", "severity", "title", "description", "sceneIds", "characterNames", "recommendation"],
+          properties: {
+            category: { type: "string", enum: ["structure", "pacing", "character", "dialogue", "continuity", "theme", "logic", "tone"] },
             severity: { type: "string", enum: ["critical", "major", "minor", "suggestion"] },
             title: { type: "string" },
             description: { type: "string" },
@@ -40,14 +109,25 @@ const SCRIPT_ANALYSIS_TOOL: Anthropic.Tool = {
           },
         },
       },
-      strengths: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["title", "description"],
-          properties: {
-            title: { type: "string" },
-            description: { type: "string" },
+      moodAndColor: {
+        type: "object",
+        description: "Per-scene mood and color palette analysis",
+        required: ["episodeAnchorMood", "scenes"],
+        properties: {
+          episodeAnchorMood: { type: "string", description: "Dominant emotional mood for the entire screenplay" },
+          scenes: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["sceneNumber", "dominantMood", "recommendedBrightnessPercent", "colorPalette", "moodNotes"],
+              properties: {
+                sceneNumber: { type: "number" },
+                dominantMood: { type: "string" },
+                recommendedBrightnessPercent: { type: "number" },
+                colorPalette: { type: "array", items: { type: "string" } },
+                moodNotes: { type: "string" },
+              },
+            },
           },
         },
       },
