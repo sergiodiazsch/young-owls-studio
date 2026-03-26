@@ -429,3 +429,275 @@ export function DurationAdjuster({
     </Sheet>
   );
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Scene-level Duration Adjuster
+   ══════════════════════════════════════════════════════════════ */
+
+interface SceneAdjustOption {
+  id: string;
+  label: string;
+  strategy: string;
+  description: string;
+  impactSeconds: number;
+  riskLevel: "low" | "medium" | "high";
+  changes?: Array<{
+    type: string;
+    character?: string;
+    originalLine?: string;
+    suggestedLine?: string;
+    description: string;
+  }>;
+}
+
+interface SceneAdjustResult {
+  currentDurationSeconds: number;
+  targetDurationSeconds: number;
+  options: SceneAdjustOption[];
+  recommendation: string;
+}
+
+export function SceneDurationAdjuster({
+  projectId,
+  sceneId,
+  sceneNumber,
+  estimatedDurationSeconds,
+  onApplied,
+}: {
+  projectId: string;
+  sceneId: number;
+  sceneNumber: number;
+  estimatedDurationSeconds: number;
+  onApplied?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [targetSec, setTargetSec] = useState(
+    estimatedDurationSeconds > 10 ? Math.round(estimatedDurationSeconds * 0.7) : 30
+  );
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SceneAdjustResult | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expandedOpt, setExpandedOpt] = useState<string | null>(null);
+
+  const handleAnalyze = useCallback(async () => {
+    setLoading(true);
+    setResult(null);
+    setSelected(new Set());
+    try {
+      const res = await fetch("/api/screenplay/adjust-duration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, sceneId, targetDurationSeconds: targetSec }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Analysis failed");
+      }
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to analyze scene");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, sceneId, targetSec]);
+
+  const toggleOption = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const totalImpact = (() => {
+    if (!result) return 0;
+    let impact = 0;
+    for (const opt of result.options) {
+      if (selected.has(opt.id)) impact += opt.impactSeconds;
+    }
+    return impact;
+  })();
+
+  const projectedSec = estimatedDurationSeconds + totalImpact;
+  const diff = targetSec - estimatedDurationSeconds;
+  const direction = diff < 0 ? "shorten" : "lengthen";
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1 text-muted-foreground hover:text-foreground">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          Adjust
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="text-base">Adjust Scene {sceneNumber} Duration</SheetTitle>
+          <p className="text-xs text-muted-foreground">Fine-tune this scene&apos;s length with AI suggestions</p>
+        </SheetHeader>
+
+        <div className="mt-5 space-y-4">
+          {/* Current vs Target */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="bg-muted/30 border-border/40">
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Current</p>
+                <p className="text-xl font-bold mt-0.5">{Math.round(estimatedDurationSeconds)}</p>
+                <p className="text-[10px] text-muted-foreground">seconds</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Target</p>
+                <Input
+                  type="number"
+                  min={5}
+                  max={600}
+                  value={targetSec}
+                  onChange={(e) => setTargetSec(Number(e.target.value) || 5)}
+                  className="w-16 h-8 text-center text-xl font-bold border-none bg-transparent p-0 mx-auto"
+                />
+                <p className="text-[10px] text-muted-foreground">seconds</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {diff !== 0 && (
+            <div className="text-center">
+              <Badge variant="outline" className={`text-[10px] ${diff < 0 ? "text-red-500 border-red-500/20" : "text-green-500 border-green-500/20"}`}>
+                {direction === "shorten" ? "Shorten" : "Lengthen"} by {Math.abs(diff)}s
+              </Badge>
+            </div>
+          )}
+
+          {/* Quick targets */}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "-30%", value: Math.round(estimatedDurationSeconds * 0.7) },
+              { label: "-50%", value: Math.round(estimatedDurationSeconds * 0.5) },
+              { label: "30s", value: 30 },
+              { label: "60s", value: 60 },
+              { label: "90s", value: 90 },
+              { label: "+50%", value: Math.round(estimatedDurationSeconds * 1.5) },
+            ].map((qt) => (
+              <button
+                key={qt.label}
+                onClick={() => setTargetSec(qt.value)}
+                className={`px-2 py-1 rounded-md text-[10px] border transition-all ${targetSec === qt.value ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground/50"}`}
+              >
+                {qt.label}
+              </button>
+            ))}
+          </div>
+
+          <Button onClick={handleAnalyze} disabled={loading || targetSec <= 0} className="w-full" size="sm">
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                Analyzing scene...
+              </span>
+            ) : `Analyze & Suggest (${direction})`}
+          </Button>
+
+          {/* Results */}
+          {result && (
+            <div className="space-y-4">
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-3">
+                  <p className="text-xs font-semibold text-primary">AI Recommendation</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{result.recommendation}</p>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-2">
+                {result.options.map((opt) => (
+                  <div key={opt.id}>
+                    <button
+                      onClick={() => toggleOption(opt.id)}
+                      className={`w-full text-left rounded-lg border p-3 transition-all duration-200 ${
+                        selected.has(opt.id)
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "border-border/40 hover:border-muted-foreground/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium">{opt.label}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-[10px] px-1.5 py-0 border ${RISK_COLORS[opt.riskLevel]}`}>
+                            {opt.riskLevel}
+                          </Badge>
+                          <span className={`text-xs font-mono font-bold ${opt.impactSeconds < 0 ? "text-red-500" : "text-green-500"}`}>
+                            {opt.impactSeconds > 0 ? "+" : ""}{opt.impactSeconds}s
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">{opt.description}</p>
+                    </button>
+                    {/* Expandable changes */}
+                    {selected.has(opt.id) && opt.changes && opt.changes.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => setExpandedOpt(expandedOpt === opt.id ? null : opt.id)}
+                          className="w-full text-left mt-1 px-3 py-1 text-[10px] text-primary hover:underline"
+                        >
+                          {expandedOpt === opt.id ? "Hide details" : `Show ${opt.changes.length} changes`}
+                        </button>
+                        {expandedOpt === opt.id && (
+                          <div className="ml-3 mt-1 space-y-1.5 border-l-2 border-primary/20 pl-3">
+                            {opt.changes.map((c, ci) => (
+                              <div key={ci} className="rounded bg-muted/30 p-2 text-[11px]">
+                                <p className="text-muted-foreground">{c.description}</p>
+                                {c.originalLine && (
+                                  <p className="mt-1 line-through text-red-400/70">
+                                    {c.character && <span className="font-semibold">{c.character}: </span>}
+                                    {c.originalLine}
+                                  </p>
+                                )}
+                                {c.suggestedLine && (
+                                  <p className="text-green-400/70">
+                                    {c.character && <span className="font-semibold">{c.character}: </span>}
+                                    {c.suggestedLine}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Projected */}
+              {selected.size > 0 && (
+                <Card className="border-border/40 bg-card/80">
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Projected</span>
+                      <span className="text-sm font-bold">{Math.round(projectedSec)}s</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${Math.abs(projectedSec - targetSec) < 5 ? "bg-green-500" : "bg-primary"}`}
+                        style={{ width: `${Math.min(100, (projectedSec / Math.max(estimatedDurationSeconds, targetSec)) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      {selected.size} options selected ({totalImpact > 0 ? "+" : ""}{totalImpact}s)
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

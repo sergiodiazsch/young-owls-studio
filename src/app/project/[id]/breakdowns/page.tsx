@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DurationAdjuster } from "@/components/duration-adjuster";
+import { DurationAdjuster, SceneDurationAdjuster } from "@/components/duration-adjuster";
 import { BREAKDOWN_CATEGORIES } from "@/lib/breakdown-categories";
 import type { Scene, SceneBreakdown, BreakdownElement } from "@/lib/types";
 
@@ -1875,9 +1875,18 @@ export default function BreakdownsPage() {
                         {/* Summary bar */}
                         <div className="flex flex-wrap items-center gap-2">
                           {aiBreakdown.metadata?.estimatedDurationSeconds && (
-                            <Badge variant="outline" className="text-[10px] h-5">
-                              {Math.round(aiBreakdown.metadata.estimatedDurationSeconds)}s est.
-                            </Badge>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className="text-[10px] h-5">
+                                {Math.round(aiBreakdown.metadata.estimatedDurationSeconds)}s est.
+                              </Badge>
+                              <SceneDurationAdjuster
+                                projectId={projectId}
+                                sceneId={row.scene.id}
+                                sceneNumber={row.scene.sceneNumber}
+                                estimatedDurationSeconds={aiBreakdown.metadata.estimatedDurationSeconds}
+                                onApplied={() => window.location.reload()}
+                              />
+                            </div>
                           )}
                           {aiBreakdown.metadata?.estimatedComplexity && (
                             <Badge variant="secondary" className="text-[10px] h-5 capitalize">
