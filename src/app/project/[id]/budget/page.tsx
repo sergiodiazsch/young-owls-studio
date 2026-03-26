@@ -12,6 +12,9 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { gsap } from "@/lib/gsap";
+import { CaretDown } from "@phosphor-icons/react/dist/csr/CaretDown";
+import { SlidersHorizontal } from "@phosphor-icons/react/dist/csr/SlidersHorizontal";
+import { Info } from "@phosphor-icons/react/dist/csr/Info";
 import {
   IMAGE_PRICING,
   VIDEO_PRICING,
@@ -23,6 +26,9 @@ import {
   type BudgetTier,
   type ProjectCostEstimate,
   type SceneCostBreakdown,
+  type CategoryModelOverrides,
+  type ModelCategory,
+  type PriceRange,
 } from "@/lib/ai-pricing";
 
 // ── Helpers ──
@@ -48,11 +54,18 @@ function fmtShort(amount: number): string {
   return fmt(amount);
 }
 
-function tierColor(tier: BudgetTier): string {
+function fmtRange(range: PriceRange): string {
+  return `${fmtShort(range.low)} \u2013 ${fmtShort(range.high)}`;
+}
+
+function tierColor(tier: BudgetTier | string): string {
   switch (tier) {
-    case "economy": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-    case "standard": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    case "economy":
+    case "budget": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    case "standard":
+    case "mid": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
     case "premium": return "bg-amber-500/10 text-amber-500 border-amber-500/20";
+    default: return "bg-muted text-muted-foreground border-border";
   }
 }
 
@@ -64,11 +77,14 @@ function tierDot(tier: BudgetTier): string {
   }
 }
 
-function tierLabel(tier: BudgetTier): string {
+function tierLabel(tier: BudgetTier | string): string {
   switch (tier) {
-    case "economy": return "Draft Cut";
-    case "standard": return "Director's Cut";
+    case "economy":
+    case "budget": return "Draft Cut";
+    case "standard":
+    case "mid": return "Director's Cut";
     case "premium": return "Festival Print";
+    default: return tier;
   }
 }
 
@@ -80,6 +96,26 @@ const COST_CATEGORIES = [
   { key: "audio" as const, label: "Audio / SFX", color: "bg-emerald-500", icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" },
   { key: "analysis" as const, label: "AI Analysis", color: "bg-slate-500", icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
 ];
+
+/** Category key to ModelCategory mapping for overrides */
+const CATEGORY_MODEL_MAP: Record<string, { category: ModelCategory; models: Array<{ id: string; name: string; tier: string }> }> = {
+  images: { category: "image", models: IMAGE_PRICING },
+  video: { category: "video", models: VIDEO_PRICING },
+  voice: { category: "voice", models: VOICE_PRICING },
+  lipsync: { category: "lipsync", models: LIPSYNC_PRICING },
+  audio: { category: "audio", models: AUDIO_PRICING },
+};
+
+/** Get the profile's default model id for a category */
+function profileModelForCategory(profile: typeof BUDGET_PROFILES[number], category: ModelCategory): string {
+  switch (category) {
+    case "image": return profile.imageModel;
+    case "video": return profile.videoModel;
+    case "voice": return profile.voiceModel;
+    case "lipsync": return profile.lipsyncModel;
+    case "audio": return profile.audioModel;
+  }
+}
 
 // ── Component ──
 
@@ -96,6 +132,10 @@ export default function BudgetPage() {
   const [retryMultiplier, setRetryMultiplier] = useState(1.8);
   const [includeUpscale, setIncludeUpscale] = useState(false);
   const [expandedScene, setExpandedScene] = useState<number | null>(null);
+
+  // Per-category model overrides
+  const [modelOverrides, setModelOverrides] = useState<CategoryModelOverrides>({});
+  const [showModelCustomizer, setShowModelCustomizer] = useState(false);
 
   // Refs for GSAP animations
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -127,6 +167,28 @@ export default function BudgetPage() {
       .catch(() => setHasBreakdowns(false));
   }, [projectId]);
 
+  // Reset overrides when profile changes
+  const handleTierChange = useCallback((newTier: BudgetTier) => {
+    setTier(newTier);
+    setModelOverrides({});
+    // Update retry multiplier to match profile default
+    const profile = BUDGET_PROFILES.find((p) => p.tier === newTier);
+    if (profile) setRetryMultiplier(profile.retryMultiplier);
+  }, []);
+
+  const handleModelOverride = useCallback((category: ModelCategory, modelId: string) => {
+    setModelOverrides((prev) => {
+      // If user selects the profile default, remove the override
+      const profile = BUDGET_PROFILES.find((p) => p.tier === tier);
+      if (profile && profileModelForCategory(profile, category) === modelId) {
+        const next = { ...prev };
+        delete next[category];
+        return next;
+      }
+      return { ...prev, [category]: modelId };
+    });
+  }, [tier]);
+
   const calculate = useCallback(async () => {
     setLoading(true);
     try {
@@ -138,6 +200,7 @@ export default function BudgetPage() {
           tier,
           retryMultiplier,
           includeUpscale,
+          modelOverrides: Object.keys(modelOverrides).length > 0 ? modelOverrides : undefined,
         }),
       });
 
@@ -153,7 +216,7 @@ export default function BudgetPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, tier, retryMultiplier, includeUpscale]);
+  }, [projectId, tier, retryMultiplier, includeUpscale, modelOverrides]);
 
   // Recalculate when controls change (if we already have an estimate)
   useEffect(() => {
@@ -161,15 +224,18 @@ export default function BudgetPage() {
       calculate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tier, retryMultiplier, includeUpscale]);
+  }, [tier, retryMultiplier, includeUpscale, modelOverrides]);
+
+  const currentProfile = BUDGET_PROFILES.find((p) => p.tier === tier) || BUDGET_PROFILES[1];
+  const hasOverrides = Object.keys(modelOverrides).length > 0;
 
   // ── Loading state ──
   if (hasBreakdowns === null) {
     return (
-      <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+      <div className="p-6 md:p-8 max-w-5xl mx-auto flex flex-col gap-6">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96" />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32" />)}
         </div>
       </div>
@@ -211,21 +277,28 @@ export default function BudgetPage() {
 
       {/* Controls */}
       {hasBreakdowns && (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           {/* Budget Profile Selector */}
           <Card className="backdrop-blur-sm bg-card/80 border-border/40">
             <CardContent className="p-5">
-              <h3 className="text-[14px] font-semibold uppercase tracking-wide mb-4 border-l-2 border-primary/50 pl-2">Quality Profile</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[14px] font-semibold uppercase tracking-wide border-l-2 border-primary/50 pl-2">Quick Start Profile</h3>
+                {hasOverrides && (
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                    Customized
+                  </Badge>
+                )}
+              </div>
               <div ref={profileRef} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {BUDGET_PROFILES.map((profile) => (
                   <button
                     key={profile.tier}
                     data-profile-card
-                    onClick={() => setTier(profile.tier)}
+                    onClick={() => handleTierChange(profile.tier)}
                     className={`relative rounded-lg border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 ${
                       tier === profile.tier
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
-                        : "border-border/40 hover:border-muted-foreground/30 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.05)]"
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-[0_0_15px_var(--glow-primary)]"
+                        : "border-border/40 hover:border-muted-foreground/30 hover:shadow-md"
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
@@ -236,6 +309,93 @@ export default function BudgetPage() {
                   </button>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Per-Category Model Customizer */}
+          <Card className="backdrop-blur-sm bg-card/80 border-border/40">
+            <CardContent className="p-5">
+              <button
+                onClick={() => setShowModelCustomizer(!showModelCustomizer)}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={16} weight="bold" className="text-primary" />
+                  <h3 className="text-[14px] font-semibold uppercase tracking-wide">Customize Models per Category</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasOverrides && (
+                    <span className="text-[11px] text-primary font-medium">
+                      {Object.keys(modelOverrides).length} override{Object.keys(modelOverrides).length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <CaretDown
+                    size={14}
+                    weight="bold"
+                    className={`text-muted-foreground transition-transform duration-200 ${showModelCustomizer ? "rotate-180" : ""}`}
+                  />
+                </div>
+              </button>
+
+              {showModelCustomizer && (
+                <div className="mt-4 flex flex-col gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    Mix and match models across categories. The profile above sets defaults; override any below.
+                  </p>
+
+                  {Object.entries(CATEGORY_MODEL_MAP).map(([costKey, { category, models }]) => {
+                    const catMeta = COST_CATEGORIES.find((c) => c.key === costKey);
+                    const currentModelId = modelOverrides[category] ?? profileModelForCategory(currentProfile, category);
+                    const isOverridden = category in modelOverrides;
+
+                    return (
+                      <div key={category} className="rounded-lg border border-border/40 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          {catMeta && <div className={`w-2 h-2 rounded-full ${catMeta.color}`} />}
+                          <span className="text-[13px] font-medium">{catMeta?.label ?? category}</span>
+                          {isOverridden && (
+                            <Badge variant="outline" className="text-[9px] bg-primary/10 text-primary border-primary/20 ml-auto">
+                              custom
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {models.map((model) => (
+                            <button
+                              key={model.id}
+                              onClick={() => handleModelOverride(category, model.id)}
+                              className={`text-xs px-2.5 py-1.5 rounded-md border transition-all duration-200 ${
+                                currentModelId === model.id
+                                  ? "border-primary bg-primary/10 text-primary shadow-[0_0_8px_var(--glow-primary)]"
+                                  : "border-border/40 text-muted-foreground hover:border-muted-foreground/40 hover:bg-primary/5"
+                              }`}
+                            >
+                              <span className="font-medium">{model.name}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] ml-1.5 ${tierColor(model.tier)}`}
+                              >
+                                {model.tier}
+                              </Badge>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {hasOverrides && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setModelOverrides({})}
+                      className="text-xs text-muted-foreground self-end"
+                    >
+                      Reset to profile defaults
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -280,14 +440,16 @@ export default function BudgetPage() {
                   Enhance your final video to 4K resolution for a sharper, cinema-quality look.
                 </p>
                 <p className="text-[12px] text-muted-foreground mb-3">
-                  Adds a per-second processing fee to every video clip in your project.
+                  Uses Topaz Video AI for per-second 4K upscaling of every video clip.
                 </p>
                 {estimate && includeUpscale && (
                   <div className="flex items-center gap-2 text-xs">
                     <Badge variant="outline" className="font-mono">
                       {Math.round(estimate.counts.totalVideoSeconds / 60)} min
                     </Badge>
-                    <span className="text-muted-foreground">= {fmt(estimate.totals.upscale)} upscale cost</span>
+                    <span className="text-muted-foreground">
+                      = {fmtRange(estimate.totalRanges.upscale)} upscale cost
+                    </span>
                   </div>
                 )}
               </CardContent>
@@ -299,7 +461,7 @@ export default function BudgetPage() {
             onClick={calculate}
             disabled={loading || !hasBreakdowns}
             size="lg"
-            className="w-full text-base font-semibold py-6 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300"
+            className="w-full text-base font-semibold py-6 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300"
           >
             {loading ? (
               <>
@@ -320,7 +482,7 @@ export default function BudgetPage() {
 
           {/* Loading skeleton */}
           {loading && !estimate && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <Skeleton className="h-36" />
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-24" />)}
@@ -330,10 +492,10 @@ export default function BudgetPage() {
 
           {/* Results */}
           {estimate && (
-            <div ref={resultsRef} className="space-y-6">
+            <div ref={resultsRef} className="flex flex-col gap-6">
               {/* Grand Total Card */}
-              <Card data-budget-card className="backdrop-blur-sm bg-card/80 border-border/40 overflow-hidden shadow-[0_0_20px_oklch(0.585_0.233_264/0.1)]">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.05] via-transparent to-[oklch(0.715_0.165_195/0.02)] pointer-events-none" />
+              <Card data-budget-card className="backdrop-blur-sm bg-card/80 border-border/40 overflow-hidden shadow-[0_0_20px_var(--glow-primary)]">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.05] via-transparent to-accent/[0.02] pointer-events-none" />
                 <CardContent className="p-6 relative">
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                     <div>
@@ -341,7 +503,10 @@ export default function BudgetPage() {
                         Estimated Total Cost
                       </p>
                       <p className="text-4xl font-bold tracking-tight text-primary">
-                        {fmtShort(estimate.totals.grandTotal)}
+                        {fmtRange(estimate.totalRanges.grandTotal)}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Midpoint: {fmtShort(estimate.totals.grandTotal)}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
                         <span>{estimate.counts.totalScenes} scenes</span>
@@ -360,15 +525,20 @@ export default function BudgetPage() {
                       </div>
                       {includeUpscale && (
                         <div className="text-[12px] text-muted-foreground">
-                          4K upscale: +{fmt(estimate.totals.upscale)}
+                          4K upscale: +{fmtRange(estimate.totalRanges.upscale)}
                         </div>
+                      )}
+                      {hasOverrides && (
+                        <Badge variant="outline" className="text-[10px] mt-1 bg-primary/10 text-primary border-primary/20">
+                          Custom model mix
+                        </Badge>
                       )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Tabs defaultValue="breakdown" className="space-y-4">
+              <Tabs defaultValue="breakdown" className="flex flex-col gap-4">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="breakdown">Cost Breakdown</TabsTrigger>
                   <TabsTrigger value="scenes">Per Scene</TabsTrigger>
@@ -376,11 +546,12 @@ export default function BudgetPage() {
                 </TabsList>
 
                 {/* ── Tab: Cost Breakdown ── */}
-                <TabsContent value="breakdown" className="space-y-4">
+                <TabsContent value="breakdown" className="flex flex-col gap-4">
                   {/* Category cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {COST_CATEGORIES.map((cat) => {
                       const amount = estimate.totals[cat.key];
+                      const range = estimate.totalRanges[cat.key as keyof typeof estimate.totalRanges] as PriceRange | undefined;
                       const pct = estimate.totals.grandTotal > 0 ? (amount / estimate.totals.grandTotal) * 100 : 0;
                       return (
                         <Card key={cat.key} data-budget-card className="backdrop-blur-sm bg-card/80 border-border/40 hover:bg-primary/5 transition-colors duration-200">
@@ -389,7 +560,11 @@ export default function BudgetPage() {
                               <div className={`w-2 h-2 rounded-full ${cat.color}`} />
                               <span className="text-xs font-medium text-muted-foreground">{cat.label}</span>
                             </div>
-                            <p className="text-lg font-bold tracking-tight">{fmt(amount)}</p>
+                            {range ? (
+                              <p className="text-[15px] font-bold tracking-tight">{fmtRange(range)}</p>
+                            ) : (
+                              <p className="text-lg font-bold tracking-tight">{fmt(amount)}</p>
+                            )}
                             <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${cat.color}`} style={{ width: `${pct}%` }} />
                             </div>
@@ -469,13 +644,21 @@ export default function BudgetPage() {
                         <div>
                           <p className="text-lg font-bold">
                             {estimate.counts.totalVideoSeconds > 0
-                              ? fmt(estimate.totals.grandTotal / (estimate.counts.totalVideoSeconds / 60))
+                              ? fmtRange({
+                                  low: estimate.totalRanges.grandTotal.low / (estimate.counts.totalVideoSeconds / 60),
+                                  high: estimate.totalRanges.grandTotal.high / (estimate.counts.totalVideoSeconds / 60),
+                                })
                               : "$0"}
                           </p>
                           <p className="text-xs text-muted-foreground">Cost per Minute</p>
                         </div>
                         <div>
-                          <p className="text-lg font-bold">{fmt(estimate.totals.grandTotal / estimate.counts.totalScenes)}</p>
+                          <p className="text-lg font-bold">
+                            {fmtRange({
+                              low: estimate.totalRanges.grandTotal.low / estimate.counts.totalScenes,
+                              high: estimate.totalRanges.grandTotal.high / estimate.counts.totalScenes,
+                            })}
+                          </p>
                           <p className="text-xs text-muted-foreground">Avg Cost per Scene</p>
                         </div>
                       </div>
@@ -484,7 +667,7 @@ export default function BudgetPage() {
                 </TabsContent>
 
                 {/* ── Tab: Per Scene ── */}
-                <TabsContent value="scenes" className="space-y-2">
+                <TabsContent value="scenes" className="flex flex-col gap-2">
                   <div className="text-xs text-muted-foreground mb-3">
                     Click a scene to expand cost details. Most expensive scenes are candidates for optimization.
                   </div>
@@ -502,13 +685,14 @@ export default function BudgetPage() {
                 </TabsContent>
 
                 {/* ── Tab: Tool Guide ── */}
-                <TabsContent value="tools" className="space-y-4">
+                <TabsContent value="tools" className="flex flex-col gap-4">
                   <ToolSection
                     title="Image Generation"
                     subtitle="AI models for generating stills from text prompts"
                     items={IMAGE_PRICING.map((m) => ({
                       name: m.name,
                       cost: fmt(m.costPerImage) + " / image",
+                      range: `${fmt(m.priceRange.low)} \u2013 ${fmt(m.priceRange.high)}`,
                       tier: m.tier,
                       bestFor: m.bestFor,
                       active: m.id === estimate.profile.imageModel,
@@ -520,6 +704,7 @@ export default function BudgetPage() {
                     items={VIDEO_PRICING.map((m) => ({
                       name: m.name,
                       cost: fmt(m.costPerSecond) + "/s",
+                      range: `${fmt(m.priceRange.low)} \u2013 ${fmt(m.priceRange.high)}/s`,
                       tier: m.tier,
                       bestFor: m.bestFor,
                       active: m.id === estimate.profile.videoModel,
@@ -531,6 +716,7 @@ export default function BudgetPage() {
                     items={VOICE_PRICING.map((m) => ({
                       name: m.name,
                       cost: fmt(m.costPer1kChars) + " / 1k chars",
+                      range: `${fmt(m.priceRange.low)} \u2013 ${fmt(m.priceRange.high)} / 1k chars`,
                       tier: m.tier,
                       bestFor: m.bestFor,
                       active: m.id === estimate.profile.voiceModel,
@@ -542,6 +728,7 @@ export default function BudgetPage() {
                     items={LIPSYNC_PRICING.map((m) => ({
                       name: m.name,
                       cost: fmt(m.costPerRun) + " / run",
+                      range: `${fmt(m.priceRange.low)} \u2013 ${fmt(m.priceRange.high)} / run`,
                       tier: m.tier,
                       bestFor: m.bestFor,
                       active: m.id === estimate.profile.lipsyncModel,
@@ -553,6 +740,7 @@ export default function BudgetPage() {
                     items={AUDIO_PRICING.map((m) => ({
                       name: m.name,
                       cost: fmt(m.costPerGeneration) + " / gen",
+                      range: `${fmt(m.priceRange.low)} \u2013 ${fmt(m.priceRange.high)} / gen`,
                       tier: m.tier,
                       bestFor: m.bestFor,
                       active: m.id === estimate.profile.audioModel,
@@ -560,10 +748,11 @@ export default function BudgetPage() {
                   />
                   <ToolSection
                     title="Video Upscaling"
-                    subtitle="Upscale final video to 4K"
+                    subtitle="Topaz Video AI for 4K upscaling"
                     items={UPSCALE_PRICING.map((m) => ({
                       name: m.name,
                       cost: fmt(m.costPerSecond) + "/s",
+                      range: `${fmt(m.priceRange.low)} \u2013 ${fmt(m.priceRange.high)}/s`,
                       tier: m.tier,
                       bestFor: [],
                       active: includeUpscale,
@@ -574,10 +763,12 @@ export default function BudgetPage() {
 
               {/* Disclaimer */}
               <div className="rounded-lg border border-dashed border-muted-foreground/20 px-4 py-3 backdrop-blur-sm bg-card/40">
-                <p className="text-[12px] text-muted-foreground text-center">
-                  Estimates based on current API pricing. Actual costs may vary with model updates,
-                  resolution choices, and generation success rates. Use as a planning guide.
-                </p>
+                <div className="flex items-start gap-2">
+                  <Info size={14} weight="bold" className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <p className="text-[12px] text-muted-foreground">
+                    Estimates based on current API pricing. Actual costs may vary based on retries, complexity, and model availability.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -621,7 +812,7 @@ function SceneRow({
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-sm font-bold">{fmt(scene.totalWithRetries)}</p>
+              <p className="text-sm font-bold">{fmtRange(scene.totalRange)}</p>
             </div>
             <svg
               width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -639,12 +830,14 @@ function SceneRow({
         <div className="border-t px-4 pb-4 pt-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {COST_CATEGORIES.map((cat) => {
-              const val = scene.costs[cat.key];
+              const range = scene.costRanges[cat.key as keyof typeof scene.costRanges] as PriceRange | undefined;
               return (
                 <div key={cat.key} className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cat.color}`} />
                   <span className="text-xs text-muted-foreground">{cat.label}</span>
-                  <span className="text-xs font-mono font-medium ml-auto">{fmt(val)}</span>
+                  <span className="text-xs font-mono font-medium ml-auto">
+                    {range ? fmtRange(range) : fmt(scene.costs[cat.key])}
+                  </span>
                 </div>
               );
             })}
@@ -672,6 +865,7 @@ function ToolSection({
   items: Array<{
     name: string;
     cost: string;
+    range: string;
     tier: string;
     bestFor: string[];
     active: boolean;
@@ -682,12 +876,12 @@ function ToolSection({
       <CardContent className="p-5">
         <h3 className="text-[14px] font-semibold uppercase tracking-wide border-l-2 border-primary/50 pl-2">{title}</h3>
         <p className="text-[12px] text-muted-foreground mb-3 pl-2">{subtitle}</p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {items.map((item) => (
             <div
               key={item.name}
               className={`flex items-start gap-3 rounded-md p-2.5 transition-colors duration-200 ${
-                item.active ? "bg-primary/5 ring-1 ring-primary/20 shadow-[0_0_10px_oklch(0.585_0.233_264/0.05)]" : "hover:bg-primary/5"
+                item.active ? "bg-primary/5 ring-1 ring-primary/20 shadow-[0_0_10px_var(--glow-primary)]" : "hover:bg-primary/5"
               }`}
             >
               <div className="flex-1 min-w-0">
@@ -711,9 +905,14 @@ function ToolSection({
                   </p>
                 )}
               </div>
-              <span className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">
-                {item.cost}
-              </span>
+              <div className="flex flex-col items-end flex-shrink-0">
+                <span className="text-xs font-mono font-medium text-muted-foreground whitespace-nowrap">
+                  {item.cost}
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                  {item.range}
+                </span>
+              </div>
             </div>
           ))}
         </div>

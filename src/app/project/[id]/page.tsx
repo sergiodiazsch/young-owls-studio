@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import type { Scene, Project } from "@/lib/types";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { ConsistencyReport } from "@/components/consistency-report";
 import { gsap } from "@/lib/gsap";
 
 /* ── Phosphor icons (deep imports) ── */
@@ -41,6 +41,8 @@ import { Sun } from "@phosphor-icons/react/dist/csr/Sun";
 import { Moon } from "@phosphor-icons/react/dist/csr/Moon";
 import { TrendUp } from "@phosphor-icons/react/dist/csr/TrendUp";
 import { Lightning } from "@phosphor-icons/react/dist/csr/Lightning";
+import { Sparkle } from "@phosphor-icons/react/dist/csr/Sparkle";
+import { FilmScript } from "@phosphor-icons/react/dist/csr/FilmScript";
 
 /* ── Dynamic recharts imports ── */
 const DynamicBarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: false });
@@ -78,6 +80,14 @@ interface ProjectStats {
   };
 }
 
+interface ActivityVersion {
+  id: number;
+  versionNumber: number;
+  label: string;
+  triggerType: string;
+  createdAt: string;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -90,8 +100,82 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/* ── Stat card with GSAP count-up ── */
-function StatNumber({ value, label, icon, accentColor }: { value: number; label: string; icon: React.ReactNode; accentColor: string }) {
+function timeAgo(dateStr: string): string {
+  if (!dateStr) return "";
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/* ── Focus ring classes shared across interactive elements ── */
+const focusRingClasses = "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+/* ── SVG Progress Ring ── */
+function ProgressRing({ percentage, size = 48, strokeWidth = 4 }: { percentage: number; size?: number; strokeWidth?: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90" aria-hidden="true">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="hsl(var(--border))"
+        strokeWidth={strokeWidth}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="hsl(var(--primary))"
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        className="transition-all duration-700"
+        style={{ filter: "drop-shadow(0 0 4px var(--glow-primary))" }}
+      />
+      <text
+        x={size / 2}
+        y={size / 2}
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="fill-foreground text-[10px] font-bold font-mono rotate-90"
+        style={{ transformOrigin: "center" }}
+      >
+        {percentage}%
+      </text>
+    </svg>
+  );
+}
+
+/* ── Bento section header — sentence case, not all-caps ── */
+function SectionDot({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+      <span className="w-1 h-3.5 rounded-full bg-primary" />
+      {children}
+    </h2>
+  );
+}
+
+/* ── Metrics band cell with GSAP count-up ── */
+function MetricCell({ value, label, href, icon }: { value: number; label: string; href: string; icon: React.ReactNode }) {
   const ref = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
 
@@ -110,44 +194,33 @@ function StatNumber({ value, label, icon, accentColor }: { value: number; label:
   }, [value]);
 
   return (
-    <div className="relative group/stat flex items-center gap-4 min-w-0 rounded-xl p-4 backdrop-blur-sm bg-card/90 border border-border/50 hover:border-border transition-all duration-300" style={{ boxShadow: `0 0 0 0 ${accentColor}`, ["--stat-accent" as string]: accentColor }}>
-      <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0 relative z-[1] transition-colors duration-300" style={{ backgroundColor: `color-mix(in oklch, ${accentColor} 18%, transparent)`, color: accentColor }}>
+    <Link
+      href={href}
+      className={`group relative flex flex-col items-center justify-center py-6 px-4 transition-all duration-200 hover:bg-primary/10 ${focusRingClasses} rounded-lg`}
+      aria-label={`${value} ${label}`}
+    >
+      <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 mb-2.5 text-primary">
         {icon}
-      </div>
-      <div className="min-w-0 relative z-[1]">
-        <p className="text-3xl font-bold tracking-tight leading-none text-foreground tabular-nums">
-          <span ref={ref}>{value}</span>
-        </p>
-        <p className="text-xs text-muted-foreground mt-1 font-medium">{label}</p>
-      </div>
-    </div>
+      </span>
+      <span className="text-3xl font-bold tabular-nums text-foreground group-hover:text-primary transition-colors duration-200">
+        <span ref={ref}>{value}</span>
+      </span>
+      <span className="text-xs uppercase tracking-widest text-muted-foreground mt-2 font-bold">{label}</span>
+    </Link>
   );
 }
 
-/* ── Production pipeline step ── */
-function PipelineStep({ label, done, href, stepNumber, isLast, isCurrent }: { label: string; done: boolean; href: string; stepNumber: number; isLast?: boolean; isCurrent?: boolean }) {
-  return (
-    <div className="flex items-center flex-1 min-w-0" data-pipeline-step>
-      <Link href={href} className="flex flex-col items-center gap-2 flex-1 min-w-0 group py-2">
-        <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
-          done
-            ? "bg-primary text-primary-foreground shadow-[0_0_14px_oklch(0.585_0.233_264/0.4)]"
-            : isCurrent
-              ? "border-2 border-primary text-primary bg-primary/15 shadow-[0_0_16px_oklch(0.585_0.233_264/0.25)]"
-              : "border border-border text-muted-foreground bg-muted/40 group-hover:border-primary/40 group-hover:text-foreground"
-        }`}>
-          {done ? <Check size={16} weight="bold" /> : <span>{stepNumber}</span>}
-        </div>
-        <span className={`text-[11px] font-semibold text-center leading-tight transition-colors ${
-          done ? "text-foreground" : isCurrent ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-        }`}>{label}</span>
-      </Link>
-      {!isLast && (
-        <div className={`w-full h-0.5 flex-1 mx-1 rounded-full transition-colors duration-500 ${done ? "bg-primary/50" : "bg-border"}`} />
-      )}
-    </div>
-  );
-}
+/* ── Tool descriptions for enhanced quick tools ── */
+const toolDescriptions: Record<string, string> = {
+  "Generate Images": "AI image generation",
+  "Generate Video": "Scene-to-video clips",
+  "Audio Studio": "Text-to-speech & SFX",
+  "Script Doctor": "AI script analysis",
+  "Camera Angles": "Shot planning & framing",
+  "Dialogue Polish": "AI dialogue rewriting",
+  "Breakdowns": "Scene element breakdowns",
+  "Upscale": "Video quality enhancement",
+};
 
 export default function ProjectOverviewPage() {
   const params = useParams();
@@ -164,12 +237,9 @@ export default function ProjectOverviewPage() {
   const [heroImages, setHeroImages] = useState<string[]>([]);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [chartsReady, setChartsReady] = useState(false);
+  const [recentActivity, setRecentActivity] = useState<ActivityVersion[]>([]);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-  const statsRef = useRef<HTMLDivElement>(null);
-  const pipelineRef = useRef<HTMLDivElement>(null);
-  const productionRef = useRef<HTMLDivElement>(null);
-  const sceneListRef = useRef<HTMLDivElement>(null);
 
   /* ── Debounce search ── */
   useEffect(() => {
@@ -219,6 +289,25 @@ export default function ProjectOverviewPage() {
       .catch(() => {});
   }, [projectId]);
 
+  /* ── Fetch recent activity ── */
+  useEffect(() => {
+    fetch(`/api/versions?projectId=${projectId}&limit=5`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const mapped: ActivityVersion[] = data.map((v: Record<string, unknown>) => ({
+            id: v.id as number,
+            versionNumber: (v.versionNumber ?? v.version_number ?? 0) as number,
+            label: (v.label ?? "") as string,
+            triggerType: (v.triggerType ?? v.trigger_type ?? "manual_save") as string,
+            createdAt: (v.createdAt ?? v.created_at ?? "") as string,
+          }));
+          setRecentActivity(mapped);
+        }
+      })
+      .catch(() => {});
+  }, [projectId]);
+
   /* ── Charts ready ── */
   useEffect(() => {
     const timer = setTimeout(() => setChartsReady(true), 100);
@@ -242,47 +331,6 @@ export default function ProjectOverviewPage() {
       setUploadingCover(false);
     }
   }
-
-  /* ── GSAP hero mosaic stagger ── */
-  useEffect(() => {
-    if (heroImages.length === 0 || !heroRef.current) return;
-    if (prefersReducedMotion()) return;
-    const images = heroRef.current.querySelectorAll("[data-hero-img]");
-    if (images.length === 0) return;
-    gsap.from(images, { opacity: 0, scale: 0.97, stagger: 0.08, duration: 0.5 });
-  }, [heroImages]);
-
-  /* ── GSAP entrance animations ── */
-  const animateSections = useCallback(() => {
-    if (prefersReducedMotion()) return;
-
-    if (statsRef.current) {
-      gsap.from(statsRef.current.children, {
-        opacity: 0, y: 16, stagger: 0.05, duration: 0.45, ease: "power3.out",
-      });
-    }
-    if (pipelineRef.current) {
-      gsap.from(pipelineRef.current.querySelectorAll("[data-pipeline-step]"), {
-        opacity: 0, y: 10, stagger: 0.07, duration: 0.4, delay: 0.15,
-      });
-    }
-    if (productionRef.current) {
-      gsap.from(productionRef.current.children, {
-        opacity: 0, y: 12, stagger: 0.06, duration: 0.4, delay: 0.25,
-      });
-    }
-    if (sceneListRef.current) {
-      gsap.from(sceneListRef.current.children, {
-        opacity: 0, y: 5, stagger: 0.012, duration: 0.2, delay: 0.35,
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (loading || scenes.length === 0) return;
-    const timer = setTimeout(animateSections, 60);
-    return () => clearTimeout(timer);
-  }, [loading, scenes.length, animateSections]);
 
   /* ── Derived data ── */
   const headingTypes = useMemo(() => {
@@ -311,6 +359,7 @@ export default function ProjectOverviewPage() {
     { label: "Breakdowns", done: (stats.breakdowns.completed || 0) > 0 },
     { label: "Locations", done: (stats.moodboards || 0) > 0 },
   ] : [];
+
   const completionDone = completionSteps.filter(s => s.done).length;
   const completionTotal = completionSteps.length;
   const completionPct = completionTotal > 0 ? Math.round((completionDone / completionTotal) * 100) : 0;
@@ -337,35 +386,47 @@ export default function ProjectOverviewPage() {
   const productionItems = stats ? [
     {
       label: "Images",
-      icon: <ImageIcon size={15} weight="duotone" />,
+      icon: <ImageIcon size={16} weight="duotone" />,
       completed: stats.imageGenerations.completed || 0,
       total: stats.imageGenerations.total || 0,
       href: `/project/${projectId}/generate`,
     },
     {
       label: "Videos",
-      icon: <VideoCamera size={15} weight="duotone" />,
+      icon: <VideoCamera size={16} weight="duotone" />,
       completed: stats.videoGenerations.completed || 0,
       total: stats.videoGenerations.total || 0,
       href: `/project/${projectId}/generate-video`,
     },
     {
       label: "Voices",
-      icon: <Microphone size={15} weight="duotone" />,
+      icon: <Microphone size={16} weight="duotone" />,
       completed: stats.voiceGenerations || 0,
       total: stats.voiceGenerations || 0,
       href: `/project/${projectId}/audio-studio`,
     },
     {
       label: "Breakdowns",
-      icon: <ListBullets size={15} weight="duotone" />,
+      icon: <ListBullets size={16} weight="duotone" />,
       completed: stats.breakdowns.completed || 0,
       total: stats.scenes.total || 0,
       href: `/project/${projectId}/breakdowns`,
     },
   ] : [];
 
-  /* ── Quick tools ── */
+  /* ── Quick tools with descriptions and recommended badges ── */
+  const recommendedTools = useMemo(() => {
+    const rec = new Set<string>();
+    if (stats?.quickActions) {
+      const qa = stats.quickActions;
+      if (qa.scenesWithoutFiles > 0) rec.add("Generate Images");
+      if (qa.scenesWithoutBreakdowns > 0) rec.add("Breakdowns");
+      if (qa.charactersWithoutVoice > 0) rec.add("Audio Studio");
+    }
+    if (stats && (stats.analyses || 0) === 0 && (stats.scenes.total || 0) > 0) rec.add("Script Doctor");
+    return rec;
+  }, [stats]);
+
   const quickTools = [
     { label: "Generate Images", href: `/project/${projectId}/generate`, icon: <ImageIcon size={16} weight="duotone" /> },
     { label: "Generate Video", href: `/project/${projectId}/generate-video`, icon: <VideoCamera size={16} weight="duotone" /> },
@@ -377,30 +438,60 @@ export default function ProjectOverviewPage() {
     { label: "Upscale", href: `/project/${projectId}/upscale`, icon: <TrendUp size={16} weight="duotone" /> },
   ];
 
+  /* ── Pipeline steps data ── */
+  const pipelineStepsData = stats ? (() => {
+    const steps = [
+      { label: "Upload Script", done: completionSteps[0]?.done, href: `/project/${projectId}/upload` },
+      { label: "Review Cast", done: completionSteps[1]?.done, href: `/project/${projectId}/characters` },
+      { label: "Generate Visuals", done: completionSteps[2]?.done, href: `/project/${projectId}/generate` },
+      { label: "Breakdowns", done: completionSteps[3]?.done, href: `/project/${projectId}/breakdowns` },
+      { label: "Organize", done: completionSteps[4]?.done, href: `/project/${projectId}/drive` },
+    ];
+    const firstPendingIdx = steps.findIndex(s => !s.done);
+    return steps.map((s, i) => ({ ...s, stepNumber: i + 1, isCurrent: i === firstPendingIdx, isLast: i === steps.length - 1 }));
+  })() : [];
+
+  /* ── Estimated runtime ── */
+  const estimatedRuntime = useMemo(() => {
+    if (!stats) return "";
+    const pages = stats.estimatedPages || 0;
+    const mins = pages; // ~1 min per page rule of thumb
+    if (mins < 60) return `~${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `~${h}h ${m > 0 ? `${m}m` : ""}`.trim();
+  }, [stats]);
+
   /* ═══════════════════════════════════════════════════════════════
      LOADING SKELETON
      ═══════════════════════════════════════════════════════════════ */
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
-        <div className="space-y-10 page-transition">
-          <Skeleton className="h-[220px] w-full rounded-xl" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
+        <div className="flex flex-col gap-6">
+          {/* Hero skeleton */}
+          <Skeleton className="h-[300px] w-full rounded-xl" />
+          {/* Metrics band skeleton */}
+          <div className="grid grid-cols-4 gap-px rounded-xl overflow-hidden border border-border">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="flex items-center gap-3">
-                <Skeleton className="h-10 w-10 rounded-lg" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-12" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
+              <div key={i} className="flex flex-col items-center gap-2 py-6 bg-card">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-8 w-14 rounded" />
+                <Skeleton className="h-3 w-16 rounded" />
               </div>
             ))}
           </div>
-          <Skeleton className="h-16 rounded-xl" />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Skeleton className="h-[200px] rounded-xl" />
-            <Skeleton className="h-[200px] rounded-xl" />
+          {/* Bento grid skeleton */}
+          <div className="grid grid-cols-3 gap-4">
+            <Skeleton className="col-span-2 h-[240px] rounded-xl" />
+            <Skeleton className="h-[240px] rounded-xl" />
+            <Skeleton className="h-[180px] rounded-xl" />
+            <Skeleton className="h-[180px] rounded-xl" />
+            <Skeleton className="h-[180px] rounded-xl" />
+            <Skeleton className="col-span-2 h-[220px] rounded-xl" />
+            <Skeleton className="h-[220px] rounded-xl" />
           </div>
+          {/* Scene list skeleton */}
           <Skeleton className="h-[300px] rounded-xl" />
         </div>
       </div>
@@ -408,27 +499,80 @@ export default function ProjectOverviewPage() {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     EMPTY STATE
+     EMPTY STATE — 3-step guide
      ═══════════════════════════════════════════════════════════════ */
   if (scenes.length === 0) {
+    const emptySteps = [
+      {
+        number: 1,
+        title: "Upload screenplay",
+        description: "Import your script in .txt, .fdx, .docx, or .fountain format.",
+        icon: <Upload size={28} weight="duotone" className="text-primary" />,
+      },
+      {
+        number: 2,
+        title: "AI parses scenes & characters",
+        description: "Claude automatically extracts scenes, dialogue, characters, and directions.",
+        icon: <Brain size={28} weight="duotone" className="text-primary" />,
+      },
+      {
+        number: 3,
+        title: "Generate visuals & audio",
+        description: "Create images, videos, voice-overs, and sound effects with AI tools.",
+        icon: <Sparkle size={28} weight="duotone" className="text-primary" />,
+      },
+    ];
+
     return (
-      <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 page-transition">
-        <div className="border border-dashed border-border/40 rounded-xl">
-          <div className="flex flex-col items-center justify-center py-24 md:py-32 empty-state-decoration">
-            <div className="w-16 h-16 rounded-2xl border border-border/40 flex items-center justify-center mb-8 relative z-10">
-              <FilmSlate size={28} weight="duotone" className="text-muted-foreground/40" />
+      <>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md">Skip to content</a>
+        <div id="main-content" className="max-w-6xl mx-auto px-4 md:px-8 py-12">
+          <div className="rounded-2xl border border-dashed border-border bg-card">
+            <div className="flex flex-col items-center justify-center py-20 md:py-28">
+              {/* Central icon */}
+              <div className="w-20 h-20 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center mb-10 relative shadow-[0_0_40px_var(--glow-primary)]">
+                <FilmSlate size={36} weight="duotone" className="text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight mb-3 text-foreground">No scenes yet</h1>
+              <p className="text-sm text-muted-foreground mb-14 text-center max-w-md leading-relaxed">
+                Upload and parse a screenplay to activate your production command center.
+              </p>
+
+              {/* 3-step guide with dotted connector */}
+              <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl w-full mb-14 px-6">
+                {/* Dotted connector line (hidden on mobile) */}
+                <div className="hidden sm:block absolute top-7 left-[calc(16.67%+24px)] right-[calc(16.67%+24px)] border-t-2 border-dashed border-border" aria-hidden="true" />
+
+                {emptySteps.map((step) => (
+                  <div key={step.number} className="flex flex-col items-center text-center gap-4 relative z-10">
+                    <div className="relative">
+                      <div className="w-14 h-14 rounded-xl bg-card border border-border flex items-center justify-center shadow-lg">
+                        {step.icon}
+                      </div>
+                      <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center shadow-[0_0_10px_var(--glow-primary)]">
+                        {step.number}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground mb-1.5">{step.title}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{step.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={() => router.push(`/project/${projectId}/upload`)}
+                size="lg"
+                className={`shadow-[0_0_20px_var(--glow-primary)] text-sm font-semibold px-8 ${focusRingClasses}`}
+              >
+                <Upload size={16} className="mr-2" />
+                Upload Screenplay
+              </Button>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight mb-2 relative z-10">No scenes yet</h2>
-            <p className="text-sm text-muted-foreground mb-10 text-center max-w-sm relative z-10">
-              Upload and parse a screenplay to get started with your production dashboard.
-            </p>
-            <Button onClick={() => router.push(`/project/${projectId}/upload`)} size="lg" className="shadow-md relative z-10">
-              <Upload size={16} className="mr-2" />
-              Upload Screenplay
-            </Button>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -436,17 +580,21 @@ export default function ProjectOverviewPage() {
      MAIN DASHBOARD
      ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-8 space-y-0 page-transition">
+    <div className="max-w-6xl mx-auto px-4 md:px-8 flex flex-col gap-0">
+
+      {/* Skip navigation link */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md">Skip to content</a>
 
       {/* ──────────────────────────────────────────────────────────
-          HERO SECTION
+          1. HERO SECTION
           ────────────────────────────────────────────────────────── */}
-      <div className="relative rounded-xl overflow-hidden group/hero -mx-4 md:-mx-8 lg:mx-0" ref={heroRef}>
+      <div className="relative rounded-2xl overflow-hidden -mx-4 md:-mx-8 lg:mx-0 group/hero" ref={heroRef}>
+        {/* Background layer */}
         {project?.coverImage ? (
-          <div className="relative h-[240px] md:h-[280px]">
+          <div className="relative h-[280px] md:h-[340px]">
             <Image
               src={`/api/projects/${projectId}/cover`}
-              alt=""
+              alt={`Cover image for ${project?.title || "project"}`}
               fill
               className="object-cover"
               loading="lazy"
@@ -454,30 +602,36 @@ export default function ProjectOverviewPage() {
             />
           </div>
         ) : heroImages.length >= 5 ? (
-          <div className="grid grid-cols-4 grid-rows-2 gap-px h-[240px] md:h-[280px] bg-border/10">
-            <div className="col-span-2 row-span-2 relative" data-hero-img>
-              <Image src={heroImages[0]} alt="" fill className="object-cover" loading="lazy" unoptimized />
+          <div className="grid grid-cols-4 grid-rows-2 gap-px h-[280px] md:h-[340px] bg-border">
+            <div className="col-span-2 row-span-2 relative">
+              <Image src={heroImages[0]} alt="Generated scene image" fill className="object-cover" loading="lazy" unoptimized />
             </div>
             {heroImages.slice(1, 5).map((url, i) => (
-              <div key={i} className="relative" data-hero-img>
-                <Image src={url} alt="" fill className="object-cover" loading="lazy" unoptimized />
+              <div key={i} className="relative">
+                <Image src={url} alt="Generated scene image" fill className="object-cover" loading="lazy" unoptimized />
               </div>
             ))}
           </div>
         ) : heroImages.length > 0 ? (
-          <div className={`grid gap-px h-[240px] bg-border/10 ${heroImages.length === 1 ? "grid-cols-1" : heroImages.length === 2 ? "grid-cols-2" : heroImages.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+          <div className={`grid gap-px h-[280px] bg-border ${heroImages.length === 1 ? "grid-cols-1" : heroImages.length === 2 ? "grid-cols-2" : heroImages.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
             {heroImages.map((url, i) => (
-              <div key={i} className="relative" data-hero-img>
-                <Image src={url} alt="" fill className="object-cover" loading="lazy" unoptimized />
+              <div key={i} className="relative">
+                <Image src={url} alt="Generated scene image" fill className="object-cover" loading="lazy" unoptimized />
               </div>
             ))}
           </div>
         ) : (
-          <div className="h-[140px] bg-gradient-to-b from-muted/20 to-transparent" />
+          <div className="h-[200px] md:h-[260px] bg-gradient-to-br from-primary/8 via-background to-background" />
         )}
 
-        {/* Cover upload button */}
-        <label className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-background/80 backdrop-blur-sm border border-border/30 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover/hero:opacity-100 cursor-pointer">
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent pointer-events-none" />
+
+        {/* Cover upload */}
+        <label
+          className={`absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 opacity-0 group-hover/hero:opacity-100 cursor-pointer ${focusRingClasses}`}
+          aria-label="Upload cover image"
+        >
           {uploadingCover ? (
             <span className="loader-spin loader-spin-sm border-muted-foreground/30 border-t-muted-foreground block w-3 h-3" />
           ) : (
@@ -497,38 +651,77 @@ export default function ProjectOverviewPage() {
           />
         </label>
 
-        {/* Gradient overlay + title */}
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[oklch(0.585_0.233_264/0.04)] to-transparent pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
-          <div className="flex items-end justify-between gap-4">
+        {/* Title card content */}
+        <div className="absolute inset-x-0 bottom-0 p-6 md:p-10">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight text-foreground">
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tighter leading-[1.1] text-foreground">
                 {project?.title || "Dashboard"}
               </h1>
+              {/* Film strip info bar */}
               {stats && (
-                <p className="text-muted-foreground text-xs mt-1.5 font-mono tabular-nums tracking-wide">
-                  {stats.estimatedPages} pg &middot; {stats.wordCount.toLocaleString()} words &middot; {stats.scenes.total} scenes
-                </p>
+                <div className="flex items-center gap-0 mt-3 font-mono text-xs tabular-nums text-muted-foreground">
+                  <span>{stats.estimatedPages} pages</span>
+                  <span className="mx-3 w-px h-3 bg-border" aria-hidden="true" />
+                  <span>{stats.wordCount.toLocaleString()} words</span>
+                  <span className="mx-3 w-px h-3 bg-border" aria-hidden="true" />
+                  <span>{stats.scenes.total} scenes</span>
+                  {estimatedRuntime && (
+                    <>
+                      <span className="mx-3 w-px h-3 bg-border" aria-hidden="true" />
+                      <span>{estimatedRuntime}</span>
+                    </>
+                  )}
+                </div>
               )}
+              {/* Production Style selector */}
+              <div className="flex items-center gap-2 mt-2">
+                <FilmScript size={14} className="text-muted-foreground shrink-0" />
+                <select
+                  value={project?.productionStyle || "general"}
+                  onChange={async (e) => {
+                    const newStyle = e.target.value;
+                    setProject(prev => prev ? { ...prev, productionStyle: newStyle } : prev);
+                    try {
+                      await fetch(`/api/projects/${projectId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ productionStyle: newStyle === "general" ? null : newStyle }),
+                      });
+                      toast.success("Production Style updated");
+                    } catch {
+                      toast.error("Failed to update Production Style");
+                    }
+                  }}
+                  className="bg-transparent border-none text-xs text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary rounded px-1 py-0.5 transition-colors"
+                  aria-label="Production Style"
+                >
+                  <option value="general">General</option>
+                  <option value="childrens_animation">Children&apos;s Animation</option>
+                  <option value="documentary">Documentary</option>
+                  <option value="commercial">Commercial / Ad</option>
+                  <option value="music_video">Music Video</option>
+                </select>
+              </div>
             </div>
+            {/* Action buttons */}
             <div className="flex items-center gap-2 shrink-0">
-              <Link href={`/project/${projectId}/present`}>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-background/60 backdrop-blur-sm border-border/30">
-                  <Slideshow size={13} />
-                  Present
+              <Link href={`/project/${projectId}/present`} className={`rounded-lg ${focusRingClasses}`} aria-label="Present screenplay">
+                <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-card border-border hover:border-primary/50 hover:shadow-md text-foreground">
+                  <Slideshow size={14} />
+                  <span className="hidden sm:inline">Present</span>
                 </Button>
               </Link>
-              <a href={`/api/download/project/${projectId}`}>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-background/60 backdrop-blur-sm border-border/30">
-                  <Export size={13} />
-                  Export
+              <a href={`/api/download/project/${projectId}`} className={`rounded-lg ${focusRingClasses}`} aria-label="Export project">
+                <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-card border-border hover:border-primary/50 hover:shadow-md text-foreground">
+                  <Export size={14} />
+                  <span className="hidden sm:inline">Export</span>
                 </Button>
               </a>
-              <a href={`/api/projects/${projectId}/report`}>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 bg-background/60 backdrop-blur-sm border-border/30">
-                  <FileText size={13} />
-                  Report PDF
+              <a href={`/api/projects/${projectId}/report`} className={`rounded-lg ${focusRingClasses}`} aria-label="Download report PDF">
+                <Button variant="outline" size="sm" className="h-9 text-xs gap-1.5 bg-card border-border hover:border-primary/50 hover:shadow-md text-foreground">
+                  <FileText size={14} />
+                  <span className="hidden sm:inline">Report</span>
                 </Button>
               </a>
             </div>
@@ -538,7 +731,7 @@ export default function ProjectOverviewPage() {
 
       {/* ── Onboarding Checklist ── */}
       {stats && (
-        <div className="pt-8 [&>div]:backdrop-blur-sm [&>div]:bg-card/60 [&>div]:border-border/30 [&>div]:shadow-[0_0_20px_oklch(0.585_0.233_264/0.04)]">
+        <div className="pt-6">
           <OnboardingChecklist
             hasScenes={(stats.scenes.total || 0) > 0}
             charactersComplete={(stats.characters || 0) > 0 && (stats.quickActions?.charactersWithoutDescription || 0) === 0}
@@ -551,145 +744,115 @@ export default function ProjectOverviewPage() {
       )}
 
       {/* ──────────────────────────────────────────────────────────
-          KEY METRICS
+          2. METRICS BAND
           ────────────────────────────────────────────────────────── */}
-      <div className="pt-10 pb-10">
-        <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatNumber value={stats?.scenes.total || scenes.length} label="Scenes" icon={<FilmSlate size={20} weight="duotone" />} accentColor="oklch(0.585 0.233 264)" />
-          <StatNumber value={stats?.characters || 0} label="Characters" icon={<Users size={20} weight="duotone" />} accentColor="oklch(0.715 0.165 195)" />
-          <StatNumber value={stats?.dialogues || 0} label="Dialogues" icon={<ChatText size={20} weight="duotone" />} accentColor="oklch(0.80 0.14 85)" />
-          <StatNumber value={stats?.estimatedPages || 0} label="Pages" icon={<FileText size={20} weight="duotone" />} accentColor="oklch(0.70 0.17 155)" />
+      <div id="main-content" className="pt-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-border bg-card overflow-hidden divide-x divide-border">
+          <MetricCell
+            value={stats?.scenes.total || scenes.length}
+            label="Scenes"
+            href={`/project/${projectId}/scenes`}
+            icon={<FilmSlate size={18} weight="duotone" />}
+          />
+          <MetricCell
+            value={stats?.characters || 0}
+            label="Characters"
+            href={`/project/${projectId}/characters`}
+            icon={<Users size={18} weight="duotone" />}
+          />
+          <MetricCell
+            value={stats?.dialogues || 0}
+            label="Dialogues"
+            href={`/project/${projectId}/scenes`}
+            icon={<ChatText size={18} weight="duotone" />}
+          />
+          <MetricCell
+            value={stats?.estimatedPages || 0}
+            label="Pages"
+            href={`/project/${projectId}/versions`}
+            icon={<FileText size={18} weight="duotone" />}
+          />
         </div>
       </div>
 
-      <div className="h-px bg-gradient-to-r from-transparent via-border/25 to-transparent" />
-
       {/* ──────────────────────────────────────────────────────────
-          PRODUCTION PIPELINE
+          3. BENTO GRID
           ────────────────────────────────────────────────────────── */}
-      {completionSteps.length > 0 && (
-        <div className="py-10">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2.5">
-              <div className="w-0.5 h-3.5 rounded-full bg-primary" />
-              <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground">Production Pipeline</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-1 w-16 rounded-full bg-border/30 overflow-hidden">
-                <div className="h-full rounded-full bg-primary/60 transition-all duration-700 shadow-[0_0_6px_oklch(0.585_0.233_264/0.3)]" style={{ width: `${completionPct}%` }} />
-              </div>
-              <span className="text-xs font-mono text-muted-foreground tabular-nums font-semibold">{completionPct}%</span>
-            </div>
-          </div>
+      <div className="pt-6 pb-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-          <div ref={pipelineRef} className="flex items-start">
-            {(() => {
-              const steps = [
-                { label: "Upload Script", done: completionSteps[0]?.done, href: `/project/${projectId}/upload` },
-                { label: "Review Cast", done: completionSteps[1]?.done, href: `/project/${projectId}/characters` },
-                { label: "Generate Visuals", done: completionSteps[2]?.done, href: `/project/${projectId}/generate` },
-                { label: "Breakdowns", done: completionSteps[3]?.done, href: `/project/${projectId}/breakdowns` },
-                { label: "Organize", done: completionSteps[4]?.done, href: `/project/${projectId}/drive` },
-              ];
-              const firstPendingIdx = steps.findIndex(s => !s.done);
-              return steps.map((step, i) => (
-                <PipelineStep
-                  key={step.label}
-                  label={step.label}
-                  done={step.done}
-                  href={step.href}
-                  stepNumber={i + 1}
-                  isLast={i === steps.length - 1}
-                  isCurrent={i === firstPendingIdx}
-                />
-              ));
-            })()}
-          </div>
-        </div>
-      )}
-
-      <div className="h-px bg-gradient-to-r from-transparent via-border/25 to-transparent" />
-
-      {/* ──────────────────────────────────────────────────────────
-          PRODUCTION STATUS + SCRIPT BREAKDOWN (Two column)
-          ────────────────────────────────────────────────────────── */}
-      <div className="py-10">
-        <div ref={productionRef} className="grid gap-10 lg:grid-cols-2 lg:gap-12">
-
-          {/* LEFT: Production Status + Needs Attention */}
-          <div className="space-y-10">
-            {/* Generation Progress */}
-            <div>
-              <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5 flex items-center gap-2.5"><span className="w-0.5 h-3.5 rounded-full bg-primary" />Generation Status</h2>
-              <div className="space-y-4">
-                {productionItems.map(item => {
-                  const pct = item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0;
-                  return (
-                    <Link key={item.label} href={item.href} className="group block">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-muted-foreground group-hover:text-primary transition-colors">{item.icon}</span>
-                          <span className="text-sm font-semibold text-foreground group-hover:text-foreground transition-colors">{item.label}</span>
-                        </div>
-                        <span className="text-xs font-mono text-muted-foreground tabular-nums font-semibold">
-                          {item.completed}{item.total > 0 && item.total !== item.completed ? ` / ${item.total}` : ""}
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted/60">
-                        <div
-                          className="h-full rounded-full bg-primary group-hover:bg-primary transition-all duration-500"
-                          style={{ width: `${Math.max(pct, item.completed > 0 ? 3 : 0)}%`, boxShadow: pct > 0 ? "0 0 8px oklch(0.585 0.233 264 / 0.3)" : "none" }}
-                        />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              {/* Cost summary */}
+          {/* ── PRODUCTION PROGRESS (spans 2 cols) ── */}
+          <div
+            data-bento-cell
+            className="lg:col-span-2 rounded-xl border border-border bg-card p-6"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <SectionDot>Production Progress</SectionDot>
               {stats && stats.totalAiCost > 0 && (
-                <div className="flex items-center gap-4 mt-5 pt-4 border-t border-border/10">
-                  <div className="flex items-center gap-2">
-                    <Lightning size={13} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">AI Spend</span>
-                  </div>
-                  <span className="text-sm font-mono text-foreground tabular-nums font-semibold">${stats.totalAiCost.toFixed(2)}</span>
-                  {stats.driveFiles.total > 0 && (
-                    <>
-                      <Separator orientation="vertical" className="h-3 opacity-40" />
-                      <Link href={`/project/${projectId}/drive`} className="flex items-center gap-1.5 group">
-                        <Folder size={13} className="text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors font-medium">
-                          {stats.driveFiles.total} files ({formatBytes(stats.driveFiles.totalSize)})
-                        </span>
-                      </Link>
-                    </>
-                  )}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lightning size={12} />
+                  <span className="font-mono tabular-nums">${stats.totalAiCost.toFixed(2)} spent</span>
                 </div>
               )}
             </div>
 
-            {/* Needs Attention */}
+            {/* Progress mini-cards in horizontal layout */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+              {productionItems.map(item => {
+                const pct = item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`group flex items-center gap-3 p-4 rounded-lg bg-muted border border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 ${focusRingClasses}`}
+                  >
+                    <ProgressRing percentage={pct} size={40} strokeWidth={3} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold tabular-nums text-foreground leading-none">
+                        {item.completed}
+                        {item.total > 0 && item.total !== item.completed && (
+                          <span className="text-muted-foreground font-normal text-xs">/{item.total}</span>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 font-medium flex items-center gap-1">
+                        <span className="group-hover:text-primary transition-colors">{item.icon}</span>
+                        {item.label}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Drive files info */}
+            {stats && stats.driveFiles.total > 0 && (
+              <Link
+                href={`/project/${projectId}/drive`}
+                className={`inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors ${focusRingClasses} rounded`}
+              >
+                <Folder size={13} />
+                <span className="font-medium">{stats.driveFiles.total} files ({formatBytes(stats.driveFiles.totalSize)})</span>
+              </Link>
+            )}
+
+            {/* Needs Attention alerts */}
             {attentionItems.length > 0 && (
-              <div>
-                <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground mb-4 flex items-center gap-2.5"><span className="w-0.5 h-3.5 rounded-full bg-primary" />Needs Attention</h2>
-                <div className="space-y-1.5">
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex flex-col gap-1.5">
                   {attentionItems.map(item => (
                     <Link
                       key={item.label}
                       href={item.href}
-                      className="flex items-center gap-3 px-3 py-3 -mx-3 rounded-lg hover:bg-destructive/10 transition-all duration-300 group border border-transparent hover:border-destructive/20"
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted border border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 group ${focusRingClasses}`}
                     >
-                      <Warning size={15} weight="fill" className="text-destructive/70 shrink-0" />
-                      <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors flex-1 font-medium">
-                        {item.label}
-                      </span>
+                      <Warning size={13} weight="fill" className="shrink-0 text-yellow-600 dark:text-yellow-400" />
+                      <span className="text-xs text-foreground font-medium flex-1">{item.label}</span>
                       {item.count !== undefined && (
-                        <Badge variant="secondary" className="text-[11px] px-2 py-0.5 h-auto font-mono bg-destructive/15 text-destructive border-0 font-semibold">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-auto font-mono border-0 font-semibold">
                           {item.count}
                         </Badge>
                       )}
-                      <CaretRight size={14} className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                      <CaretRight size={12} className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
                     </Link>
                   ))}
                 </div>
@@ -697,331 +860,461 @@ export default function ProjectOverviewPage() {
             )}
           </div>
 
-          {/* RIGHT: Script Analysis */}
-          <div className="space-y-10">
-            {/* Scene type + time breakdown */}
-            <div>
-              <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5 flex items-center gap-2.5"><span className="w-0.5 h-3.5 rounded-full bg-primary" />Script Breakdown</h2>
+          {/* ── PIPELINE (1 col, vertical steps) ── */}
+          {pipelineStepsData.length > 0 && (
+            <div
+              data-bento-cell
+              className="rounded-xl border border-border bg-card p-6 flex flex-col"
+            >
+              <SectionDot>Pipeline</SectionDot>
 
-              {/* INT / EXT split */}
-              {stats && stats.scenes.total > 0 && (
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2.5">
-                      <span className="text-xs font-semibold text-muted-foreground">Location Type</span>
-                    </div>
-                    <div className="flex gap-0.5 rounded-lg overflow-hidden h-3">
-                      {stats.scenes.intCount > 0 && (
-                        <div
-                          className="transition-all duration-500 rounded-sm"
-                          style={{ width: `${(stats.scenes.intCount / stats.scenes.total) * 100}%`, background: "oklch(0.585 0.233 264)" }}
-                          title={`INT: ${stats.scenes.intCount}`}
-                          role="meter"
-                          aria-label={`Interior: ${stats.scenes.intCount} scenes`}
-                          aria-valuenow={stats.scenes.intCount}
-                        />
-                      )}
-                      {stats.scenes.extCount > 0 && (
-                        <div
-                          className="transition-all duration-500 rounded-sm"
-                          style={{ width: `${(stats.scenes.extCount / stats.scenes.total) * 100}%`, background: "oklch(0.715 0.165 195)" }}
-                          title={`EXT: ${stats.scenes.extCount}`}
-                          role="meter"
-                          aria-label={`Exterior: ${stats.scenes.extCount} scenes`}
-                          aria-valuenow={stats.scenes.extCount}
-                        />
-                      )}
-                      {stats.scenes.intExtCount > 0 && (
-                        <div
-                          className="transition-all duration-500 rounded-sm"
-                          style={{ width: `${(stats.scenes.intExtCount / stats.scenes.total) * 100}%`, background: "oklch(0.80 0.14 85)" }}
-                          title={`INT/EXT: ${stats.scenes.intExtCount}`}
-                          role="meter"
-                          aria-label={`Interior/Exterior: ${stats.scenes.intExtCount} scenes`}
-                          aria-valuenow={stats.scenes.intExtCount}
-                        />
+              <div className="flex flex-col gap-0 mt-5 flex-1">
+                {pipelineStepsData.map((step) => (
+                  <div key={step.label} className="flex items-start gap-3">
+                    {/* Vertical line + circle */}
+                    <div className="flex flex-col items-center shrink-0">
+                      <Link
+                        href={step.href}
+                        className={`relative w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-all duration-200 ${focusRingClasses} ${
+                          step.done
+                            ? "bg-primary text-primary-foreground shadow-[0_0_12px_var(--glow-primary)]"
+                            : step.isCurrent
+                              ? "border-2 border-primary text-primary bg-card"
+                              : "border-2 border-border text-muted-foreground bg-card"
+                        }`}
+                        aria-label={`${step.label}: ${step.done ? "completed" : step.isCurrent ? "current step" : "pending"}`}
+                      >
+                        {step.done ? <Check size={13} weight="bold" /> : <span>{step.stepNumber}</span>}
+                      </Link>
+                      {!step.isLast && (
+                        <div className={`w-0.5 h-5 transition-colors duration-500 ${step.done ? "bg-primary" : "bg-border"}`} />
                       )}
                     </div>
-                    <div className="flex gap-5 mt-2.5">
-                      {stats.scenes.intCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "oklch(0.585 0.233 264)" }} />
-                          <span className="text-xs text-foreground/80 font-medium">INT <span className="font-mono tabular-nums font-semibold">{stats.scenes.intCount}</span></span>
-                        </div>
-                      )}
-                      {stats.scenes.extCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "oklch(0.715 0.165 195)" }} />
-                          <span className="text-xs text-foreground/80 font-medium">EXT <span className="font-mono tabular-nums font-semibold">{stats.scenes.extCount}</span></span>
-                        </div>
-                      )}
-                      {stats.scenes.intExtCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-sm" style={{ background: "oklch(0.80 0.14 85)" }} />
-                          <span className="text-xs text-foreground/80 font-medium">INT/EXT <span className="font-mono tabular-nums font-semibold">{stats.scenes.intExtCount}</span></span>
-                        </div>
-                      )}
-                    </div>
+                    {/* Label */}
+                    <Link
+                      href={step.href}
+                      className={`text-sm font-semibold pt-1 transition-colors ${focusRingClasses} rounded ${
+                        step.done ? "text-foreground" : step.isCurrent ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {step.label}
+                    </Link>
                   </div>
+                ))}
+              </div>
 
-                  {/* Day / Night split */}
-                  {(stats.scenes.dayCount > 0 || stats.scenes.nightCount > 0) && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2.5">
-                        <span className="text-xs font-semibold text-muted-foreground">Time of Day</span>
-                      </div>
-                      <div className="flex gap-0.5 rounded-lg overflow-hidden h-3">
-                        {stats.scenes.dayCount > 0 && (
-                          <div
-                            className="transition-all duration-500 rounded-sm"
-                            style={{ width: `${(stats.scenes.dayCount / stats.scenes.total) * 100}%`, background: "oklch(0.80 0.14 85)" }}
-                            title={`Day: ${stats.scenes.dayCount}`}
-                            role="meter"
-                            aria-label={`Day scenes: ${stats.scenes.dayCount}`}
-                          />
-                        )}
-                        {stats.scenes.nightCount > 0 && (
-                          <div
-                            className="transition-all duration-500 rounded-sm"
-                            style={{ width: `${(stats.scenes.nightCount / stats.scenes.total) * 100}%`, background: "oklch(0.585 0.233 264)" }}
-                            title={`Night: ${stats.scenes.nightCount}`}
-                            role="meter"
-                            aria-label={`Night scenes: ${stats.scenes.nightCount}`}
-                          />
-                        )}
-                        {(() => {
-                          const other = stats.scenes.total - stats.scenes.dayCount - stats.scenes.nightCount;
-                          return other > 0 ? (
-                            <div
-                              className="transition-all duration-500 rounded-sm bg-muted"
-                              style={{ width: `${(other / stats.scenes.total) * 100}%` }}
-                              title={`Other: ${other}`}
-                            />
-                          ) : null;
-                        })()}
-                      </div>
-                      <div className="flex gap-5 mt-2.5">
-                        {stats.scenes.dayCount > 0 && (
-                          <div className="flex items-center gap-2">
-                            <Sun size={13} weight="fill" style={{ color: "oklch(0.80 0.14 85)" }} />
-                            <span className="text-xs text-foreground/80 font-medium">Day <span className="font-mono tabular-nums font-semibold">{stats.scenes.dayCount}</span></span>
-                          </div>
-                        )}
-                        {stats.scenes.nightCount > 0 && (
-                          <div className="flex items-center gap-2">
-                            <Moon size={13} weight="fill" className="text-primary" />
-                            <span className="text-xs text-foreground/80 font-medium">Night <span className="font-mono tabular-nums font-semibold">{stats.scenes.nightCount}</span></span>
-                          </div>
-                        )}
-                      </div>
+              {/* Overall progress ring at bottom */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Overall</span>
+                <ProgressRing percentage={completionPct} size={36} strokeWidth={3} />
+              </div>
+            </div>
+          )}
+
+          {/* ── SCENE TYPES (INT/EXT) ── */}
+          {stats && stats.scenes.total > 0 && (
+            <div
+              data-bento-cell
+              className="rounded-xl border border-border bg-card p-6"
+            >
+              <SectionDot>Scene Types</SectionDot>
+
+              <div className="mt-5">
+                {/* Stacked bar */}
+                <div className="flex gap-0.5 rounded-md overflow-hidden h-6 mb-4">
+                  {stats.scenes.intCount > 0 && (
+                    <div
+                      className="transition-all duration-500 rounded-sm"
+                      style={{ width: `${(stats.scenes.intCount / stats.scenes.total) * 100}%`, background: "oklch(0.585 0.233 264)" }}
+                      title={`INT: ${stats.scenes.intCount}`}
+                      role="meter"
+                      aria-label={`Interior: ${stats.scenes.intCount} scenes`}
+                      aria-valuenow={stats.scenes.intCount}
+                    />
+                  )}
+                  {stats.scenes.extCount > 0 && (
+                    <div
+                      className="transition-all duration-500 rounded-sm"
+                      style={{ width: `${(stats.scenes.extCount / stats.scenes.total) * 100}%`, background: "oklch(0.715 0.165 195)" }}
+                      title={`EXT: ${stats.scenes.extCount}`}
+                      role="meter"
+                      aria-label={`Exterior: ${stats.scenes.extCount} scenes`}
+                      aria-valuenow={stats.scenes.extCount}
+                    />
+                  )}
+                  {stats.scenes.intExtCount > 0 && (
+                    <div
+                      className="transition-all duration-500 rounded-sm"
+                      style={{ width: `${(stats.scenes.intExtCount / stats.scenes.total) * 100}%`, background: "oklch(0.80 0.14 85)" }}
+                      title={`INT/EXT: ${stats.scenes.intExtCount}`}
+                      role="meter"
+                      aria-label={`Interior/Exterior: ${stats.scenes.intExtCount} scenes`}
+                      aria-valuenow={stats.scenes.intExtCount}
+                    />
+                  )}
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {stats.scenes.intCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ background: "oklch(0.585 0.233 264)" }} />
+                      <span className="text-xs text-foreground font-medium">INT <span className="font-mono tabular-nums font-semibold text-muted-foreground">{stats.scenes.intCount}</span></span>
+                    </div>
+                  )}
+                  {stats.scenes.extCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ background: "oklch(0.715 0.165 195)" }} />
+                      <span className="text-xs text-foreground font-medium">EXT <span className="font-mono tabular-nums font-semibold text-muted-foreground">{stats.scenes.extCount}</span></span>
+                    </div>
+                  )}
+                  {stats.scenes.intExtCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ background: "oklch(0.80 0.14 85)" }} />
+                      <span className="text-xs text-foreground font-medium">INT/EXT <span className="font-mono tabular-nums font-semibold text-muted-foreground">{stats.scenes.intExtCount}</span></span>
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* Directions breakdown */}
-              {stats && stats.directions.total > 0 && (
-                <div className="mt-5 pt-4 border-t border-border/10">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: "Actions", value: stats.directions.actions },
-                      { label: "Transitions", value: stats.directions.transitions },
-                      { label: "B-Roll", value: stats.directions.brolls },
-                      { label: "Music", value: stats.directions.music },
-                      { label: "Notes", value: stats.directions.notes },
-                    ].filter(d => d.value > 0).map(d => (
-                      <div key={d.label} className="py-2 px-3 rounded-lg bg-muted/40">
-                        <span className="text-lg font-bold text-foreground tabular-nums">{d.value}</span>
-                        <span className="text-[11px] text-muted-foreground ml-1.5 font-medium">{d.label}</span>
-                      </div>
-                    ))}
+                {/* Directions breakdown compact */}
+                {stats.directions.total > 0 && (
+                  <div className="mt-5 pt-4 border-t border-border">
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: "Actions", value: stats.directions.actions },
+                        { label: "Transitions", value: stats.directions.transitions },
+                        { label: "B-Roll", value: stats.directions.brolls },
+                        { label: "Music", value: stats.directions.music },
+                        { label: "Notes", value: stats.directions.notes },
+                      ].filter(d => d.value > 0).map(d => (
+                        <div key={d.label} className="py-1.5 px-2 rounded-md bg-muted text-center">
+                          <span className="text-sm font-bold text-foreground tabular-nums">{d.value}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1 font-medium">{d.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
+          )}
 
-            {/* Top Characters — horizontal bar chart */}
-            {chartsReady && topCharsChartData.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground flex items-center gap-2.5"><span className="w-0.5 h-3.5 rounded-full bg-primary" />Dialogue by Character</h2>
-                  <Link href={`/project/${projectId}/characters`} className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 font-medium">
-                    View all <CaretRight size={11} />
-                  </Link>
+          {/* ── DAY/NIGHT ── */}
+          {stats && (stats.scenes.dayCount > 0 || stats.scenes.nightCount > 0) && (
+            <div
+              data-bento-cell
+              className="rounded-xl border border-border bg-card p-6"
+            >
+              <SectionDot>Time of Day</SectionDot>
+
+              <div className="mt-5">
+                {/* Stacked bar */}
+                <div className="flex gap-0.5 rounded-md overflow-hidden h-6 mb-4">
+                  {stats.scenes.dayCount > 0 && (
+                    <div
+                      className="transition-all duration-500 rounded-sm"
+                      style={{ width: `${(stats.scenes.dayCount / stats.scenes.total) * 100}%`, background: "oklch(0.80 0.14 85)" }}
+                      title={`Day: ${stats.scenes.dayCount}`}
+                      role="meter"
+                      aria-label={`Day scenes: ${stats.scenes.dayCount}`}
+                    />
+                  )}
+                  {stats.scenes.nightCount > 0 && (
+                    <div
+                      className="transition-all duration-500 rounded-sm"
+                      style={{ width: `${(stats.scenes.nightCount / stats.scenes.total) * 100}%`, background: "oklch(0.585 0.233 264)" }}
+                      title={`Night: ${stats.scenes.nightCount}`}
+                      role="meter"
+                      aria-label={`Night scenes: ${stats.scenes.nightCount}`}
+                    />
+                  )}
+                  {(() => {
+                    const other = stats.scenes.total - stats.scenes.dayCount - stats.scenes.nightCount;
+                    return other > 0 ? (
+                      <div
+                        className="transition-all duration-500 rounded-sm bg-muted"
+                        style={{ width: `${(other / stats.scenes.total) * 100}%` }}
+                        title={`Other: ${other}`}
+                      />
+                    ) : null;
+                  })()}
                 </div>
-                <div className="h-[220px]">
-                  <DynamicResponsiveContainer width="100%" height="100%">
-                    <DynamicBarChart data={topCharsChartData} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
-                      <DynamicXAxis type="number" hide />
-                      <DynamicYAxis
-                        dataKey="name"
-                        type="category"
-                        width={80}
-                        tick={{ fontSize: 12, fill: "oklch(0.70 0 0)", fontWeight: 500 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <DynamicTooltip
-                        contentStyle={{
-                          backgroundColor: "oklch(var(--card) / 0.85)",
-                          backdropFilter: "blur(12px)",
-                          WebkitBackdropFilter: "blur(12px)",
-                          border: "1px solid oklch(var(--border) / 0.3)",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                          boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 0 10px oklch(0.585 0.233 264 / 0.05)",
-                        }}
-                        cursor={{ fill: "oklch(0.585 0.233 264 / 5%)" }}
-                      />
-                      <DynamicBar
-                        dataKey="lines"
-                        fill="oklch(0.585 0.233 264 / 0.7)"
-                        radius={[0, 4, 4, 0]}
-                        barSize={14}
-                      />
-                    </DynamicBarChart>
-                  </DynamicResponsiveContainer>
+
+                {/* Legend with sun/moon icons */}
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {stats.scenes.dayCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Sun size={14} weight="fill" style={{ color: "oklch(0.80 0.14 85)" }} />
+                      <span className="text-xs text-foreground font-medium">Day <span className="font-mono tabular-nums font-semibold text-muted-foreground">{stats.scenes.dayCount}</span></span>
+                    </div>
+                  )}
+                  {stats.scenes.nightCount > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Moon size={14} weight="fill" className="text-primary" />
+                      <span className="text-xs text-foreground font-medium">Night <span className="font-mono tabular-nums font-semibold text-muted-foreground">{stats.scenes.nightCount}</span></span>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* ── QUICK TOOLS (2x4 grid) ── */}
+          <div
+            data-bento-cell
+            className="rounded-xl border border-border bg-card p-6"
+          >
+            <SectionDot>Quick Tools</SectionDot>
+
+            <div className="grid grid-cols-2 gap-2 mt-5">
+              {quickTools.map(tool => {
+                const isRecommended = recommendedTools.has(tool.label);
+                return (
+                  <Link
+                    key={tool.label}
+                    href={tool.href}
+                    className={`relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                      isRecommended
+                        ? "bg-primary/15 border-2 border-primary/40 hover:border-primary"
+                        : "bg-card border border-border hover:border-primary/50 hover:shadow-md"
+                    } ${focusRingClasses}`}
+                  >
+                    <span className="text-primary group-hover:text-primary transition-colors shrink-0">{tool.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground truncate leading-tight">{tool.label}</p>
+                      {toolDescriptions[tool.label] && (
+                        <p className="text-[9px] text-muted-foreground truncate leading-tight mt-0.5">{toolDescriptions[tool.label]}</p>
+                      )}
+                    </div>
+                    {isRecommended && (
+                      <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_var(--glow-primary)]" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
+
+          {/* ── CHARACTER CHART (spans 2 cols) ── */}
+          {chartsReady && topCharsChartData.length > 0 && (
+            <div
+              data-bento-cell
+              className="lg:col-span-2 rounded-xl border border-border bg-card p-6"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <SectionDot>Dialogue by Character</SectionDot>
+                <Link
+                  href={`/project/${projectId}/characters`}
+                  className={`text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 font-semibold ${focusRingClasses} rounded`}
+                >
+                  View all <CaretRight size={10} />
+                </Link>
+              </div>
+              <div className="h-[220px]">
+                <DynamicResponsiveContainer width="100%" height="100%">
+                  <DynamicBarChart data={topCharsChartData} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
+                    <DynamicXAxis type="number" hide />
+                    <DynamicYAxis
+                      dataKey="name"
+                      type="category"
+                      width={80}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <DynamicTooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "10px",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                        color: "hsl(var(--foreground))",
+                      }}
+                      cursor={{ fill: "hsl(var(--muted))" }}
+                    />
+                    <DynamicBar
+                      dataKey="lines"
+                      fill="hsl(var(--primary))"
+                      radius={[0, 6, 6, 0]}
+                      barSize={14}
+                    />
+                  </DynamicBarChart>
+                </DynamicResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* ── ACTIVITY FEED ── */}
+          {recentActivity.length > 0 && (
+            <div
+              data-bento-cell
+              className="rounded-xl border border-border bg-card p-6"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <SectionDot>Activity</SectionDot>
+                <Link
+                  href={`/project/${projectId}/versions`}
+                  className={`text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 font-semibold ${focusRingClasses} rounded`}
+                >
+                  All <CaretRight size={10} />
+                </Link>
+              </div>
+              <div className="flex flex-col gap-0">
+                {recentActivity.map((v, i) => (
+                  <Link
+                    key={v.id}
+                    href={`/project/${projectId}/versions`}
+                    className={`flex items-start gap-3 py-2.5 group ${focusRingClasses} rounded-lg`}
+                  >
+                    {/* Timeline dot + line */}
+                    <div className="flex flex-col items-center shrink-0 pt-0.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                      {i < recentActivity.length - 1 && (
+                        <div className="w-0.5 h-full min-h-[20px] bg-border mt-1" />
+                      )}
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                      <span className="text-xs font-bold text-foreground font-mono tabular-nums shrink-0">
+                        v{v.versionNumber}
+                      </span>
+                      {v.label && (
+                        <span className="text-xs text-muted-foreground truncate">{v.label}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0 pt-0.5">
+                      {timeAgo(v.createdAt)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="h-px bg-gradient-to-r from-transparent via-border/25 to-transparent" />
+      {/* Visual Consistency Report */}
+      {stats && stats.imageGenerations.completed > 1 && (
+        <div className="pb-4">
+          <ConsistencyReport projectId={projectId} />
+        </div>
+      )}
 
       {/* ──────────────────────────────────────────────────────────
-          QUICK TOOLS — compact horizontal list
+          4. SCENES LIST
           ────────────────────────────────────────────────────────── */}
-      <div className="py-10">
-        <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground mb-5 flex items-center gap-2.5"><span className="w-0.5 h-3.5 rounded-full bg-primary" />Tools</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {quickTools.map(tool => (
-            <Link
-              key={tool.label}
-              href={tool.href}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-lg border border-border/50 bg-card/80 hover:border-primary/50 hover:bg-card hover:-translate-y-0.5 hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.15)] transition-all duration-300 group"
-            >
-              <span className="text-primary/70 group-hover:text-primary transition-colors">
-                {tool.icon}
-              </span>
-              <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors truncate">
-                {tool.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="h-px bg-gradient-to-r from-transparent via-border/25 to-transparent" />
-
-      {/* ──────────────────────────────────────────────────────────
-          SCENES LIST
-          ────────────────────────────────────────────────────────── */}
-      <div className="py-10 pb-16">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xs uppercase tracking-[0.14em] font-bold text-muted-foreground flex items-center gap-2.5"><span className="w-0.5 h-3.5 rounded-full bg-primary" />Scenes</h2>
-          <span className="text-xs font-mono text-muted-foreground tabular-nums font-semibold">
-            {filtered.length !== scenes.length ? `${filtered.length} of ` : ""}{scenes.length}
-          </span>
-        </div>
-
-        {/* Search + Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1 sm:max-w-xs">
-            <label htmlFor="scene-search" className="sr-only">Search scenes</label>
-            <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="scene-search"
-              placeholder="Search scenes..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-10 text-sm border-border/50 bg-card/50 placeholder:text-muted-foreground/50"
-            />
+      <div className="py-6 pb-16">
+        <div className="rounded-xl border border-border bg-card p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <SectionDot>Scenes</SectionDot>
+            <span className="text-xs font-mono text-muted-foreground tabular-nums font-semibold uppercase tracking-widest">
+              {filtered.length !== scenes.length ? `${filtered.length} / ` : ""}{scenes.length}
+            </span>
           </div>
-          <div className="flex gap-1 flex-wrap" role="group" aria-label="Filter scenes">
-            <button
-              onClick={() => setFilterType("all")}
-              aria-pressed={filterType === "all"}
-              className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                filterType === "all"
-                  ? "bg-primary text-primary-foreground shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              All
-            </button>
-            {headingTypes.map(t => (
+
+          {/* Search + Filters */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-5">
+            <div className="relative flex-1 sm:max-w-xs">
+              <label htmlFor="scene-search" className="sr-only">Search scenes</label>
+              <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="scene-search"
+                placeholder="Search scenes..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={`pl-8 h-9 text-sm border-border bg-muted placeholder:text-muted-foreground rounded-lg ${focusRingClasses}`}
+              />
+            </div>
+            <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Filter scenes">
               <button
-                key={t}
-                onClick={() => setFilterType(t)}
-                aria-pressed={filterType === t}
-                className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                  filterType === t
-                    ? "bg-primary text-primary-foreground shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                onClick={() => setFilterType("all")}
+                aria-pressed={filterType === "all"}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 ${focusRingClasses} ${
+                  filterType === "all"
+                    ? "bg-primary text-primary-foreground shadow-[0_0_10px_var(--glow-primary)]"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t}
+                All
               </button>
-            ))}
+              {headingTypes.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setFilterType(t)}
+                  aria-pressed={filterType === t}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 ${focusRingClasses} ${
+                    filterType === t
+                      ? "bg-primary text-primary-foreground shadow-[0_0_10px_var(--glow-primary)]"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-sm text-muted-foreground">No scenes match your filters</p>
-            <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => { setSearch(""); setFilterType("all"); }}>
-              Clear filters
-            </Button>
-          </div>
-        ) : (
-          <div ref={sceneListRef} className="divide-y divide-border/30">
-            {filtered.map(scene => (
-              <Link
-                key={scene.id}
-                href={`/project/${projectId}/scenes/${scene.id}`}
-                className="flex items-center gap-4 py-3.5 px-3 -mx-3 rounded-lg hover:bg-card transition-all duration-200 group"
-                prefetch={true}
-              >
-                {/* Scene number */}
-                <span className="text-xs font-mono text-muted-foreground w-7 text-right shrink-0 tabular-nums font-semibold">
-                  {scene.sceneNumber}
-                </span>
-
-                {/* Type badge */}
-                <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded font-bold shrink-0 ${
-                  scene.headingType === "INT" ? "bg-primary/15 text-primary" :
-                  scene.headingType === "EXT" ? "bg-accent/15 text-accent" :
-                  scene.headingType === "INT/EXT" ? "bg-[oklch(0.80_0.14_85)]/15 text-[oklch(0.80_0.14_85)]" :
-                  "bg-muted text-muted-foreground"
-                }`}>
-                  {scene.headingType || "--"}
-                </span>
-
-                {/* Heading + synopsis */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate text-foreground group-hover:text-foreground transition-colors">
-                    {scene.heading}
-                  </p>
-                  {scene.synopsis && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{scene.synopsis}</p>
-                  )}
-                </div>
-
-                {/* Time of day */}
-                {scene.timeOfDay && (
-                  <span className="text-xs text-muted-foreground font-mono shrink-0 hidden sm:block tabular-nums">
-                    {scene.timeOfDay}
+          {/* Scene rows */}
+          {filtered.length === 0 ? (
+            <div className="text-center py-14">
+              <p className="text-sm text-muted-foreground">No scenes match your filters</p>
+              <Button variant="outline" size="sm" className={`mt-3 text-xs ${focusRingClasses}`} onClick={() => { setSearch(""); setFilterType("all"); }}>
+                Clear filters
+              </Button>
+            </div>
+          ) : (
+            <div>
+              {filtered.map((scene, i) => (
+                <Link
+                  key={scene.id}
+                  href={`/project/${projectId}/scenes/${scene.id}`}
+                  className={`flex items-center gap-4 py-4 px-4 rounded-lg hover:bg-accent/50 transition-all duration-200 group ${focusRingClasses} ${
+                    i % 2 === 1 ? "bg-muted" : ""
+                  }`}
+                  prefetch={true}
+                >
+                  {/* Scene number */}
+                  <span className="text-sm font-mono font-bold text-muted-foreground w-6 text-right shrink-0 tabular-nums">
+                    {scene.sceneNumber}
                   </span>
-                )}
 
-                {/* Arrow */}
-                <CaretRight size={14} className="text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
-              </Link>
-            ))}
-          </div>
-        )}
+                  {/* Type badge */}
+                  <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md font-bold shrink-0 ${
+                    scene.headingType === "INT" ? "bg-primary/20 text-primary" :
+                    scene.headingType === "EXT" ? "bg-accent/12 text-accent" :
+                    scene.headingType === "INT/EXT" ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    {scene.headingType || "--"}
+                  </span>
+
+                  {/* Heading + synopsis */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate text-foreground leading-tight">
+                      {scene.heading}
+                    </p>
+                    {scene.synopsis && (
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5 leading-tight">{scene.synopsis}</p>
+                    )}
+                  </div>
+
+                  {/* Time of day */}
+                  {scene.timeOfDay && (
+                    <span className="text-[10px] text-muted-foreground font-mono shrink-0 hidden sm:block tabular-nums uppercase tracking-wider">
+                      {scene.timeOfDay}
+                    </span>
+                  )}
+
+                  {/* Arrow */}
+                  <CaretRight size={13} className="text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

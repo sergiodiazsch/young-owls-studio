@@ -31,18 +31,21 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const figtree = Figtree({
   variable: "--font-figtree",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -50,12 +53,14 @@ const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
+  preload: false,
 });
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 const libreBaskerville = Libre_Baskerville({
@@ -64,12 +69,14 @@ const libreBaskerville = Libre_Baskerville({
   weight: ["400", "700"],
   style: ["normal", "italic"],
   display: "swap",
+  preload: false,
 });
 
 const syne = Syne({
   variable: "--font-syne",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 import type { Viewport } from "next";

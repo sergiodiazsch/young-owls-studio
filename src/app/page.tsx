@@ -29,10 +29,6 @@ import dynamic from "next/dynamic";
 import { FilmSlate } from "@phosphor-icons/react/dist/csr/FilmSlate";
 import { useWalkthrough } from "@/hooks/use-walkthrough";
 
-const ThemeCustomizer = dynamic(
-  () => import("@/components/theme-customizer").then((m) => ({ default: m.ThemeCustomizer })),
-  { ssr: false }
-);
 
 const Walkthrough = dynamic(
   () => import("@/components/onboarding/walkthrough").then((m) => ({ default: m.Walkthrough })),
@@ -215,7 +211,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background page-transition">
       {/* ── Header ── */}
-      <header className="relative overflow-hidden border-b border-border/50" style={{ boxShadow: "0 1px 30px oklch(0.585 0.233 264 / 0.06)" }}>
+      <header className="relative overflow-hidden border-b border-border/50" style={{ boxShadow: "0 1px 30px var(--glow-primary)" }}>
         {/* Cover image */}
         {hasCover && (
           <>
@@ -243,16 +239,16 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-8 pb-8 sm:pt-14 sm:pb-12">
           <div className="flex items-start justify-between mb-8 stagger-header">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shadow-md film-glow" style={{ boxShadow: "0 0 20px oklch(0.585 0.233 264 / 0.35)" }}>
+              <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shadow-md film-glow" style={{ boxShadow: "0 0 20px var(--glow-primary)" }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary-foreground">
                   <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                   <path d="M14 2v6h6" /><path d="M16 13H8M16 17H8M10 9H8" />
                 </svg>
               </div>
               <div>
-                <span className="text-xl font-bold tracking-tight" style={hasCover ? { color: cover.textColor } : { textShadow: "0 0 30px oklch(0.585 0.233 264 / 0.2)" }}>Young Owls Studio</span>
+                <span className="text-xl font-bold tracking-tight" style={hasCover ? { color: cover.textColor } : { textShadow: "0 0 30px var(--glow-primary)" }}>Young Owls Studio</span>
                 <p
-                  className={hasCover ? "text-[10px] font-mono tracking-widest" : "text-[10px] text-muted-foreground/50 font-mono tracking-widest"}
+                  className={hasCover ? "text-[10px] font-mono tracking-widest" : "text-[10px] text-muted-foreground font-mono tracking-widest"}
                   style={hasCover ? { color: cover.textColor, opacity: 0.6 } : undefined}
                 >DARK CINEMA PREMIUM</p>
               </div>
@@ -344,7 +340,6 @@ export default function HomePage() {
                   <path d="M12 1v4M12 19v4M1 12h4M19 12h4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
                 </svg>
               </Button>
-              <ThemeCustomizer />
             </div>
           </div>
 
@@ -363,7 +358,7 @@ export default function HomePage() {
             </p>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" data-tour="new-project" className="h-11 px-6 text-sm font-semibold gap-2 glow-md hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.35)] transition-shadow duration-300">
+                <Button size="lg" data-tour="new-project" className="h-11 px-6 text-sm font-semibold gap-2 glow-md hover:shadow-md transition-shadow duration-300">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
@@ -444,7 +439,7 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  <Button onClick={handleCreate} disabled={creating || !newTitle.trim()} className="w-full h-12 text-base font-semibold hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300">
+                  <Button onClick={handleCreate} disabled={creating || !newTitle.trim()} className="w-full h-12 text-base font-semibold hover:shadow-md transition-shadow duration-300">
                     {creating ? (
                       <span className="flex items-center gap-2">
                         <span className="loader-spin loader-spin-sm border-primary-foreground/30 border-t-primary-foreground" />
@@ -479,7 +474,7 @@ export default function HomePage() {
             <CardContent className="flex flex-col items-center justify-center py-24 relative z-10">
               <div
                 className="w-24 h-24 rounded-2xl bg-primary/10 bg-primary/5 glow-md flex items-center justify-center mb-6 animate-float"
-                style={{ boxShadow: "0 0 30px oklch(0.585 0.233 264 / 0.15)" }}
+                style={{ boxShadow: "0 0 30px var(--glow-primary)" }}
               >
                 <FilmSlate size={40} weight="duotone" className="text-primary" />
               </div>
@@ -490,8 +485,8 @@ export default function HomePage() {
               <Button
                 size="lg"
                 onClick={() => setDialogOpen(true)}
-                className="cta-glow h-12 px-8 text-base font-semibold hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.35)] transition-shadow duration-300"
-                style={{ boxShadow: "0 0 15px oklch(0.585 0.233 264 / 0.2)" }}
+                className="cta-glow h-12 px-8 text-base font-semibold hover:shadow-md transition-shadow duration-300"
+                style={{ boxShadow: "0 0 15px var(--glow-primary)" }}
               >
                 Create First Project
               </Button>
@@ -500,7 +495,7 @@ export default function HomePage() {
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[11px] font-medium text-muted-foreground/50 uppercase tracking-widest font-mono">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest font-mono">
                 {projects.length} project{projects.length !== 1 ? "s" : ""}
               </p>
             </div>
@@ -515,7 +510,7 @@ export default function HomePage() {
                 return (
                   <div key={p.id} data-project-card className="relative group">
                     <Link href={`/project/${p.id}`} className="block" prefetch={true}>
-                      <Card className="cursor-pointer backdrop-blur-sm bg-card/80 border-border/40 hover:border-primary/30 transition-all duration-300 overflow-hidden hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.12)] hover:-translate-y-0.5">
+                      <Card className="cursor-pointer backdrop-blur-sm bg-card/80 border-border/40 hover:border-primary/30 transition-all duration-300 overflow-hidden hover:shadow-md hover:-translate-y-0.5">
                         {/* Cover image or accent bar */}
                         {p.coverImage ? (
                           <div className="relative h-32 overflow-hidden bg-muted/20">
@@ -569,7 +564,7 @@ export default function HomePage() {
                               <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-primary/60 transition-all duration-700"
-                                  style={{ width: `${progress}%`, boxShadow: "0 0 8px oklch(0.585 0.233 264 / 0.3)" }}
+                                  style={{ width: `${progress}%`, boxShadow: "0 0 8px var(--glow-primary)" }}
                                 />
                               </div>
                             </div>
@@ -585,7 +580,7 @@ export default function HomePage() {
 
                     {/* Cover upload button — OUTSIDE the Link */}
                     <label
-                      className="absolute top-2 left-2 text-foreground/60 hover:text-foreground transition-all p-1.5 rounded-md bg-background/70 backdrop-blur-sm hover:bg-background/90 opacity-0 group-hover:opacity-100 focus-within:opacity-100 z-10 cursor-pointer"
+                      className="absolute top-2 left-2 text-foreground hover:text-foreground transition-all p-1.5 rounded-md bg-background/70 backdrop-blur-sm hover:bg-background/90 opacity-0 group-hover:opacity-100 focus-within:opacity-100 z-10 cursor-pointer"
                       title="Set cover image"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -613,7 +608,7 @@ export default function HomePage() {
                     {/* Edit button — OUTSIDE the Link to prevent navigation */}
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditDialog(p); }}
-                      className={`absolute ${p.coverImage ? "top-2" : "top-[5.5rem]"} right-10 text-foreground/60 hover:text-primary transition-all p-1.5 rounded-md bg-background/70 backdrop-blur-sm hover:bg-background/90 opacity-0 group-hover:opacity-100 focus:opacity-100 z-10`}
+                      className={`absolute ${p.coverImage ? "top-2" : "top-[5.5rem]"} right-10 text-foreground hover:text-primary transition-all p-1.5 rounded-md bg-background/70 backdrop-blur-sm hover:bg-background/90 opacity-0 group-hover:opacity-100 focus:opacity-100 z-10`}
                       aria-label={`Edit project ${p.title}`}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -624,7 +619,7 @@ export default function HomePage() {
                     {/* Delete button — OUTSIDE the Link to prevent navigation */}
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(p.id); }}
-                      className={`absolute ${p.coverImage ? "top-2" : "top-[5.5rem]"} right-2 text-foreground/60 hover:text-destructive transition-all p-1.5 rounded-md bg-background/70 backdrop-blur-sm hover:bg-background/90 opacity-0 group-hover:opacity-100 focus:opacity-100 z-10`}
+                      className={`absolute ${p.coverImage ? "top-2" : "top-[5.5rem]"} right-2 text-foreground hover:text-destructive transition-all p-1.5 rounded-md bg-background/70 backdrop-blur-sm hover:bg-background/90 opacity-0 group-hover:opacity-100 focus:opacity-100 z-10`}
                       aria-label={`Delete project ${p.title}`}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -671,7 +666,7 @@ export default function HomePage() {
             <Button
               onClick={handleEdit}
               disabled={saving || !editTitle.trim()}
-              className="w-full h-12 text-base font-semibold hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300"
+              className="w-full h-12 text-base font-semibold hover:shadow-md transition-shadow duration-300"
             >
               {saving ? (
                 <span className="flex items-center gap-2">

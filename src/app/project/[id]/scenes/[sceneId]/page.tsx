@@ -62,6 +62,7 @@ export default function SceneDetailPage() {
   const [linkTab, setLinkTab] = useState<"drive" | "upload">("drive");
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; errors: string[] } | null>(null);
   const [driveSearch, setDriveSearch] = useState("");
 
   function fetchScene(signal?: AbortSignal) {
@@ -145,37 +146,66 @@ export default function SceneDetailPage() {
     fetchScene();
   }
 
-  async function handleUploadAndLink(file: File) {
+  async function handleUploadAndLink(files: FileList | File[]) {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
     setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("projectId", projectId);
+    const progress = { current: 0, total: fileArray.length, errors: [] as string[] };
+    if (fileArray.length > 1) setUploadProgress({ ...progress });
 
-      const uploadRes = await fetch("/api/drive/files/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({ error: "Upload failed" }));
-        throw new Error(err.error || "Upload failed");
+    // Upload up to 3 files concurrently
+    const CONCURRENCY = 3;
+    let i = 0;
+
+    async function uploadOne(file: File) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("projectId", projectId);
+
+        const uploadRes = await fetch("/api/drive/files/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({ error: "Upload failed" }));
+          throw new Error(err.error || "Upload failed");
+        }
+        const driveFile = await uploadRes.json();
+
+        await fetch("/api/drive/scene-links", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sceneId: Number(sceneId), fileId: driveFile.id }),
+        });
+      } catch (err: unknown) {
+        progress.errors.push(`${file.name}: ${err instanceof Error ? err.message : "failed"}`);
+      } finally {
+        progress.current++;
+        if (fileArray.length > 1) setUploadProgress({ ...progress });
       }
-      const driveFile = await uploadRes.json();
-
-      await fetch("/api/drive/scene-links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sceneId: Number(sceneId), fileId: driveFile.id }),
-      });
-
-      toast.success("File uploaded & linked");
-      setLinkDialogOpen(false);
-      fetchScene();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
     }
+
+    // Process in batches
+    while (i < fileArray.length) {
+      const batch = fileArray.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(uploadOne));
+      i += CONCURRENCY;
+    }
+
+    const succeeded = progress.total - progress.errors.length;
+    if (succeeded > 0) {
+      toast.success(`${succeeded} file${succeeded !== 1 ? "s" : ""} uploaded & linked`);
+    }
+    if (progress.errors.length > 0) {
+      toast.error(`${progress.errors.length} failed: ${progress.errors[0]}`);
+    }
+
+    setUploading(false);
+    setUploadProgress(null);
+    setLinkDialogOpen(false);
+    fetchScene();
   }
 
   if (loading) {
@@ -498,8 +528,7 @@ export default function SceneDetailPage() {
                   e.preventDefault();
                   e.stopPropagation();
                   setDragOver(false);
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) handleUploadAndLink(file);
+                  if (e.dataTransfer.files?.length) handleUploadAndLink(e.dataTransfer.files);
                 }}
               >
                 {uploading ? (
@@ -508,7 +537,16 @@ export default function SceneDetailPage() {
                       <circle cx="12" cy="12" r="10" className="opacity-25" />
                       <path d="M4 12a8 8 0 018-8" className="opacity-75" />
                     </svg>
-                    <p className="text-sm text-muted-foreground">Uploading & linking...</p>
+                    {uploadProgress ? (
+                      <div className="text-center space-y-1.5 w-full max-w-[200px]">
+                        <p className="text-sm text-muted-foreground">{uploadProgress.current}/{uploadProgress.total} files</p>
+                        <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                          <div className="h-full rounded-full bg-primary/60 transition-all duration-300" style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Uploading & linking...</p>
+                    )}
                   </>
                 ) : dragOver ? (
                   <>
@@ -529,8 +567,8 @@ export default function SceneDetailPage() {
                       </svg>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium">Drop file here or click to browse</p>
-                      <p className="text-xs text-muted-foreground mt-1">Images, audio, video, or documents (max 100MB)</p>
+                      <p className="text-sm font-medium">Drop files here or click to browse</p>
+                      <p className="text-xs text-muted-foreground mt-1">Select multiple files at once (max 100MB each)</p>
                     </div>
                   </>
                 )}
@@ -539,10 +577,10 @@ export default function SceneDetailPage() {
                   type="file"
                   className="hidden"
                   accept="image/*,audio/*,video/*,.pdf"
+                  multiple
                   disabled={uploading}
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadAndLink(file);
+                    if (e.target.files?.length) handleUploadAndLink(e.target.files);
                     e.target.value = "";
                   }}
                 />

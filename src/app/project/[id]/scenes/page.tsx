@@ -115,7 +115,7 @@ export default function ScenesPage() {
             placeholder="Search scenes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 focus:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300"
+            className="pl-9 focus:shadow-[0_0_15px_var(--glow-primary)] transition-shadow duration-300"
           />
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mb-1">
@@ -123,7 +123,7 @@ export default function ScenesPage() {
             onClick={() => setFilter("all")}
             className={`px-3 py-1.5 md:px-2.5 md:py-1 text-xs rounded-md transition-all duration-300 shrink-0 min-h-[36px] md:min-h-0 ${
               filter === "all"
-                ? "bg-primary text-primary-foreground shadow-[0_0_12px_oklch(0.585_0.233_264/0.25)]"
+                ? "bg-primary text-primary-foreground shadow-[0_0_12px_var(--glow-primary)]"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
@@ -135,7 +135,7 @@ export default function ScenesPage() {
               onClick={() => setFilter(t!)}
               className={`px-3 py-1.5 md:px-2.5 md:py-1 text-xs rounded-md transition-all duration-300 shrink-0 min-h-[36px] md:min-h-0 ${
                 filter === t
-                  ? "bg-primary text-primary-foreground shadow-[0_0_12px_oklch(0.585_0.233_264/0.25)]"
+                  ? "bg-primary text-primary-foreground shadow-[0_0_12px_var(--glow-primary)]"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
@@ -242,8 +242,8 @@ function SceneCard({
     <div
       className={`rounded-lg border transition-all duration-300 backdrop-blur-sm ${
         isExpanded
-          ? "border-l-[3px] border-l-amber-500 border-t border-r border-b border-border bg-muted/30 shadow-[0_0_15px_oklch(0.585_0.233_264/0.08)]"
-          : "border-border/40 bg-card/80 hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+          ? "border-l-[3px] border-l-amber-500 border-t border-r border-b border-border bg-muted/30 shadow-[0_0_15px_var(--glow-primary)]"
+          : "border-border/40 bg-card/80 hover:bg-muted/20 hover:-translate-y-0.5 hover:shadow-md"
       }`}
     >
       {/* Collapsed card — always visible */}
@@ -252,7 +252,7 @@ function SceneCard({
         className="w-full text-left py-3 px-4 flex items-start gap-3 group"
       >
         {/* Scene number square */}
-        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 shadow-[0_0_8px_oklch(0.585_0.233_264/0.1)]">
+        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 shadow-[0_0_8px_var(--glow-primary)]">
           <span className="font-mono text-sm font-bold text-primary">
             {scene.sceneNumber}
           </span>
@@ -267,9 +267,9 @@ function SceneCard({
                 variant="secondary"
                 className={`text-[10px] font-mono font-semibold px-1.5 py-0 leading-5 rounded ${
                   isInt
-                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25 shadow-[0_0_8px_oklch(0.795_0.184_86/0.15)]"
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25 shadow-sm"
                     : isExt
-                    ? "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/25 shadow-[0_0_8px_oklch(0.585_0.233_264/0.15)]"
+                    ? "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/25 shadow-[0_0_8px_var(--glow-primary)]"
                     : ""
                 }`}
               >
@@ -372,7 +372,7 @@ function SceneCard({
                             ({el.parenthetical})
                           </div>
                         )}
-                        <div className="font-mono text-xs text-foreground/70 text-center max-w-[280px] mx-auto leading-relaxed">
+                        <div className="font-mono text-xs text-foreground text-center max-w-[280px] mx-auto leading-relaxed">
                           {el.line}
                         </div>
                       </div>
@@ -391,7 +391,7 @@ function SceneCard({
                   return (
                     <div
                       key={i}
-                      className="font-mono text-xs text-foreground/60 leading-relaxed"
+                      className="font-mono text-xs text-foreground leading-relaxed"
                     >
                       {el.content}
                     </div>
@@ -405,7 +405,7 @@ function SceneCard({
           <div className="flex items-center gap-2 pt-1">
             <Link
               href={`/project/${projectId}/generate?sceneId=${scene.id}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] transition-all duration-300"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 hover:shadow-md transition-all duration-300"
             >
               <svg
                 width="13"
@@ -425,7 +425,7 @@ function SceneCard({
             </Link>
             <Link
               href={`/project/${projectId}/generate-video`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] transition-all duration-300"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 hover:shadow-md transition-all duration-300"
             >
               <svg
                 width="13"

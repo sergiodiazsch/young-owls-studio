@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "./db/queries";
 import type { AnalysisResult, Scene, Dialogue, Direction, Character } from "./types";
+import { getProductionStylePrompt } from "./production-style";
 
 async function getAnthropicClient(): Promise<Anthropic> {
   const setting = await getSetting("anthropic_api_key");
@@ -396,8 +397,10 @@ function buildScreenplayText(
 
 function getAnalysisPrompt(
   analysisType: string,
-  customPrompt?: string
+  customPrompt?: string,
+  productionStyle?: string | null,
 ): string {
+  const stylePrompt = getProductionStylePrompt(productionStyle);
   const base =
     "You are a professional script doctor and screenplay consultant with decades of experience in the film and television industry. Analyze the following screenplay thoroughly.";
 
@@ -417,7 +420,7 @@ Provide a comprehensive analysis covering:
 5. THEMES - Identified themes, how well they are woven through the story
 6. CONTINUITY - Plot holes, logic issues, timeline problems
 
-Be specific. Reference exact scene numbers and dialogue IDs. Assign scores honestly - most scripts have room for improvement. Use the tension curve to map the emotional journey scene by scene.${moodColorInstruction}`;
+Be specific. Reference exact scene numbers and dialogue IDs. Assign scores honestly - most scripts have room for improvement. Use the tension curve to map the emotional journey scene by scene.${moodColorInstruction}${stylePrompt}`;
 
     case "structure":
       return `${base}
@@ -432,7 +435,7 @@ Focus specifically on STRUCTURAL analysis:
 - Scene sequencing and necessity (are there scenes that don't serve the story?)
 - Setup and payoff tracking
 
-For areas outside structure (pacing, characters, dialogue, themes), provide basic assessments but focus your detailed analysis on structure. Still provide tension curve data and identify any issues.${moodColorInstruction}`;
+For areas outside structure (pacing, characters, dialogue, themes), provide basic assessments but focus your detailed analysis on structure. Still provide tension curve data and identify any issues.${moodColorInstruction}${stylePrompt}`;
 
     case "characters":
       return `${base}
@@ -447,7 +450,7 @@ Focus specifically on CHARACTER analysis:
 - Supporting character utility and depth
 - Protagonist likeability/relatability
 
-For areas outside characters (structure, pacing, themes), provide basic assessments but focus your detailed analysis on character work. Still provide tension curve data and identify issues.${moodColorInstruction}`;
+For areas outside characters (structure, pacing, themes), provide basic assessments but focus your detailed analysis on character work. Still provide tension curve data and identify issues.${moodColorInstruction}${stylePrompt}`;
 
     case "dialogue":
       return `${base}
@@ -462,7 +465,7 @@ Focus specifically on DIALOGUE analysis:
 - Dialogue that feels unnatural or forced
 - Character-specific speech patterns
 
-For areas outside dialogue (structure, pacing, themes), provide basic assessments but focus your detailed analysis on dialogue quality. Still provide tension curve data and identify issues.${moodColorInstruction}`;
+For areas outside dialogue (structure, pacing, themes), provide basic assessments but focus your detailed analysis on dialogue quality. Still provide tension curve data and identify issues.${moodColorInstruction}${stylePrompt}`;
 
     case "pacing":
       return `${base}
@@ -477,19 +480,19 @@ Focus specifically on PACING analysis:
 - Cliffhangers and act-out moments
 - Overall rhythm and momentum
 
-For areas outside pacing (structure, characters, dialogue, themes), provide basic assessments but focus your detailed analysis on pacing. Still provide tension curve data and identify issues.${moodColorInstruction}`;
+For areas outside pacing (structure, characters, dialogue, themes), provide basic assessments but focus your detailed analysis on pacing. Still provide tension curve data and identify issues.${moodColorInstruction}${stylePrompt}`;
 
     case "custom":
       return `${base}
 
 ${customPrompt || "Provide a comprehensive analysis."}
 
-In addition to addressing the above, still provide complete scores for structure, pacing, characters, and dialogue. Generate the tension curve data and identify specific issues.${moodColorInstruction}`;
+In addition to addressing the above, still provide complete scores for structure, pacing, characters, and dialogue. Generate the tension curve data and identify specific issues.${moodColorInstruction}${stylePrompt}`;
 
     default:
       return `${base}
 
-Provide a comprehensive analysis covering structure, pacing, characters, dialogue, themes, and continuity.${moodColorInstruction}`;
+Provide a comprehensive analysis covering structure, pacing, characters, dialogue, themes, and continuity.${moodColorInstruction}${stylePrompt}`;
   }
 }
 
@@ -501,9 +504,10 @@ export async function analyzeScreenplay(
   analysisType: string,
   customPrompt?: string,
   onToken?: (text: string) => void,
+  productionStyle?: string | null,
 ): Promise<AnalysisResult> {
   const screenplayText = buildScreenplayText(scenes, characters);
-  const systemPrompt = getAnalysisPrompt(analysisType, customPrompt);
+  const systemPrompt = getAnalysisPrompt(analysisType, customPrompt, productionStyle);
 
   const client = await getAnthropicClient();
   const stream = client.messages.stream({

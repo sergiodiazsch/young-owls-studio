@@ -172,7 +172,7 @@ export default function MoodboardsPage() {
             Collect images, colors, and notes into visual moodboards
           </p>
         </div>
-        <Button size="lg" onClick={() => setCreateOpen(true)} className="shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)]">
+        <Button size="lg" onClick={() => setCreateOpen(true)} className="shadow-[0_0_15px_var(--glow-primary)]">
           <svg
             width="14"
             height="14"
@@ -195,7 +195,7 @@ export default function MoodboardsPage() {
           <CardContent className="relative flex flex-col items-center justify-center py-24 overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/[0.04] via-transparent to-transparent pointer-events-none" />
             {/* Placeholder mosaic icon */}
-            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-5 shadow-[0_0_30px_oklch(0.585_0.233_264/0.15)]">
+            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-5 shadow-[0_0_30px_var(--glow-primary)]">
               <svg
                 width="28"
                 height="28"
@@ -217,7 +217,7 @@ export default function MoodboardsPage() {
               Create mood boards to define the visual style of your production.
               Collect reference images, color palettes, and style inspirations.
             </p>
-            <Button size="lg" onClick={() => setCreateOpen(true)} className="relative shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)]">
+            <Button size="lg" onClick={() => setCreateOpen(true)} className="relative shadow-[0_0_15px_var(--glow-primary)]">
               Create First Board
             </Button>
           </CardContent>
@@ -228,7 +228,7 @@ export default function MoodboardsPage() {
             <Card
               key={board.id}
               data-moodboard-card
-              className="group cursor-pointer rounded-xl border border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.12)] hover:-translate-y-1 overflow-hidden"
+              className="group cursor-pointer rounded-xl border border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-md hover:-translate-y-1 overflow-hidden"
               onClick={() =>
                 router.push(`/project/${projectId}/moodboards/${board.id}`)
               }

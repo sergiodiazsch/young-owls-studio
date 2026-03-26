@@ -106,12 +106,12 @@ const FLAG_COLORS = [
 
 const TAG_COLORS: Record<string, string> = {
   red: "bg-destructive/15 text-destructive border-destructive/20",
-  orange: "bg-[oklch(0.7_0.17_55/0.15)] text-[oklch(0.7_0.17_55)] border-[oklch(0.7_0.17_55/0.2)]",
-  yellow: "bg-[oklch(0.75_0.15_85/0.15)] text-[oklch(0.75_0.15_85)] border-[oklch(0.75_0.15_85/0.2)]",
-  green: "bg-[oklch(0.72_0.17_162/0.15)] text-[oklch(0.72_0.17_162)] border-[oklch(0.72_0.17_162/0.2)]",
+  orange: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/20",
+  yellow: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
+  green: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   blue: "bg-primary/15 text-primary border-primary/20",
-  purple: "bg-[oklch(0.65_0.2_300/0.15)] text-[oklch(0.65_0.2_300)] border-[oklch(0.65_0.2_300/0.2)]",
-  pink: "bg-[oklch(0.65_0.2_340/0.15)] text-[oklch(0.65_0.2_340)] border-[oklch(0.65_0.2_340/0.2)]",
+  purple: "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/20",
+  pink: "bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/20",
   gray: "bg-muted text-muted-foreground border-border",
 };
 
@@ -518,7 +518,7 @@ export default function DrivePage() {
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1">
           <label htmlFor="library-search" className="sr-only">Search files, folders, tags...</label>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
             <circle cx="7" cy="7" r="5" /><path d="M12 12l3 3" />
           </svg>
           <Input
@@ -527,7 +527,7 @@ export default function DrivePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-10 h-11 rounded-xl bg-muted/40 dark:bg-white/[0.04] border-muted-foreground/10 text-sm focus:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300"
+            className="pl-10 h-11 rounded-xl bg-muted/40 dark:bg-white/[0.04] border-muted-foreground/10 text-sm focus:shadow-[0_0_10px_var(--glow-primary)] transition-shadow duration-300"
           />
           {search && (
             <button
@@ -577,7 +577,7 @@ export default function DrivePage() {
         </button>
         {breadcrumbs.map((bc, i) => (
           <span key={bc.id} className="flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground/30">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
               <path d="M6 3l5 5-5 5" />
             </svg>
             <button
@@ -625,13 +625,13 @@ export default function DrivePage() {
 
       {/* ── Action buttons ── */}
       <div className="flex items-center gap-2 mb-6">
-        <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-lg h-9 px-4 gap-1.5 shadow-[0_0_10px_oklch(0.585_0.233_264/0.15)] hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.25)] transition-shadow duration-300">
+        <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-lg h-9 px-4 gap-1.5 shadow-[0_0_10px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M8 3v10M3 8h10" />
           </svg>
           {uploading ? "Uploading..." : "Add File"}
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="rounded-lg h-9 px-4 gap-1.5 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300">
+        <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="rounded-lg h-9 px-4 gap-1.5 hover:shadow-md transition-shadow duration-300">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 4a1 1 0 011-1h4l2 2h5a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" />
           </svg>
@@ -649,7 +649,7 @@ export default function DrivePage() {
       {/* ── FOLDERS ── */}
       {folders.length > 0 && (
         <div className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50 mb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-3">
             Folders
           </p>
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
@@ -657,7 +657,7 @@ export default function DrivePage() {
               <div
                 key={folder.id}
                 data-drive-card
-                className="group relative backdrop-blur-sm bg-card/80 border border-border/40 rounded-xl hover:border-border hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                className="group relative backdrop-blur-sm bg-card/80 border border-border/40 rounded-xl hover:border-border hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 onClick={() => navigateToFolder(folder.id)}
               >
                 {/* Flag dot */}
@@ -740,7 +740,7 @@ export default function DrivePage() {
       {/* ── FILES ── */}
       {filteredItems.length > 0 ? (
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50 mb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-3">
             Files{filterType !== "all" ? ` — ${FILTER_TABS.find((t) => t.value === filterType)?.label}` : ""}
           </p>
           {viewMode === "grid" ? (
@@ -749,9 +749,9 @@ export default function DrivePage() {
                 <div
                   key={item.id}
                   data-drive-card
-                  className={`group relative backdrop-blur-sm bg-card/80 border rounded-lg overflow-hidden hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${
+                  className={`group relative backdrop-blur-sm bg-card/80 border rounded-lg overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${
                     previewItem?.id === item.id && previewOpen
-                      ? "border-primary ring-1 ring-primary/30 shadow-[0_0_15px_oklch(0.585_0.233_264/0.15)]"
+                      ? "border-primary ring-1 ring-primary/30 shadow-[0_0_15px_var(--glow-primary)]"
                       : "border-border/40 hover:border-border"
                   }`}
                   onClick={() => openPreview(item)}
@@ -771,13 +771,13 @@ export default function DrivePage() {
                       />
                     ) : item.type === "video" ? (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted/80 to-muted">
-                        <div className="w-14 h-14 rounded-2xl bg-foreground/5 dark:bg-white/10 flex items-center justify-center shadow-[0_0_12px_oklch(0.585_0.233_264/0.1)]">
+                        <div className="w-14 h-14 rounded-2xl bg-foreground/5 dark:bg-white/10 flex items-center justify-center shadow-[0_0_12px_var(--glow-primary)]">
                           <FileTypeIcon type="video" className="text-muted-foreground" />
                         </div>
                       </div>
                     ) : item.type === "audio" ? (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted/80 to-muted">
-                        <div className="w-14 h-14 rounded-2xl bg-foreground/5 dark:bg-white/10 flex items-center justify-center shadow-[0_0_12px_oklch(0.715_0.165_195/0.1)]">
+                        <div className="w-14 h-14 rounded-2xl bg-foreground/5 dark:bg-white/10 flex items-center justify-center shadow-sm">
                           <FileTypeIcon type="audio" className="text-muted-foreground" />
                         </div>
                       </div>
@@ -926,7 +926,7 @@ export default function DrivePage() {
                   data-drive-card
                   className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer ${
                     previewItem?.id === item.id && previewOpen
-                      ? "bg-primary/[0.06] border border-primary/20 shadow-[0_0_10px_oklch(0.585_0.233_264/0.08)]"
+                      ? "bg-primary/[0.06] border border-primary/20 shadow-[0_0_10px_var(--glow-primary)]"
                       : "hover:bg-primary/5 border border-transparent"
                   }`}
                   onClick={() => openPreview(item)}
@@ -1002,7 +1002,7 @@ export default function DrivePage() {
             </p>
             <div className="relative flex gap-2">
               <Button variant="outline" onClick={() => setNewFolderOpen(true)} className="rounded-lg">New Folder</Button>
-              <Button onClick={() => fileInputRef.current?.click()} className="rounded-lg shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300">Add File</Button>
+              <Button onClick={() => fileInputRef.current?.click()} className="rounded-lg shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300">Add File</Button>
             </div>
           </div>
         </div>
@@ -1262,7 +1262,7 @@ function PreviewSheet({
 
           {/* Preview area */}
           <div className="px-5 pt-3">
-            <div className="rounded-lg overflow-hidden bg-muted/50 dark:bg-white/[0.03] border border-border/40 shadow-[inset_0_0_20px_oklch(0.585_0.233_264/0.03)]">
+            <div className="rounded-lg overflow-hidden bg-muted/50 dark:bg-white/[0.03] border border-border/40 shadow-[inset_0_0_20px_var(--glow-primary)]">
               {item.type === "image" ? (
                 <div className="relative aspect-square">
                   <Image
@@ -1381,7 +1381,7 @@ function PreviewSheet({
               {item.meta?.prompt && (
                 <div className="pt-1">
                   <p className="text-[11px] font-medium text-muted-foreground mb-1">Prompt</p>
-                  <div className="rounded-md bg-muted/50 dark:bg-white/[0.03] border border-border/40 p-2.5 shadow-[inset_0_0_10px_oklch(0.585_0.233_264/0.02)]">
+                  <div className="rounded-md bg-muted/50 dark:bg-white/[0.03] border border-border/40 p-2.5 shadow-[inset_0_0_10px_var(--glow-primary)]">
                     <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">{item.meta.prompt}</p>
                   </div>
                 </div>
@@ -1420,7 +1420,7 @@ function PreviewSheet({
           {/* Actions */}
           <div className="px-5 pt-2 pb-5 flex flex-col gap-2">
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="flex-1 h-9 gap-1.5 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300" onClick={handleDownload}>
+              <Button size="sm" variant="outline" className="flex-1 h-9 gap-1.5 hover:shadow-md transition-shadow duration-300" onClick={handleDownload}>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" /><path d="M8 2v8M5 7l3 3 3-3" />
                 </svg>

@@ -187,7 +187,7 @@ export default function UpscalePage() {
                   onClick={() => setFilter(key)}
                   className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-300 ${
                     filter === key
-                      ? "bg-primary/15 text-primary shadow-[0_2px_8px_oklch(0.585_0.233_264/0.15)]"
+                      ? "bg-primary/15 text-primary shadow-[0_2px_8px_var(--glow-primary)]"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
@@ -204,7 +204,7 @@ export default function UpscalePage() {
           <Button
             onClick={() => setPanelOpen(true)}
             size="sm"
-            className="gap-1.5 shrink-0 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300"
+            className="gap-1.5 shrink-0 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M8 3v10M3 8h10" />
@@ -224,7 +224,7 @@ export default function UpscalePage() {
           </div>
         ) : filteredGenerations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-5 shadow-[0_0_20px_oklch(0.585_0.233_264/0.1)]">
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-5 shadow-[0_0_20px_var(--glow-primary)]">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
                 <rect x="2" y="4" width="20" height="16" rx="2" />
                 <path d="M7 14l3-3 2 2 4-4" />
@@ -242,7 +242,7 @@ export default function UpscalePage() {
                 <p className="text-sm text-muted-foreground text-center max-w-sm mb-5">
                   Upload a video to upscale its resolution or boost its frame rate
                 </p>
-                <Button onClick={() => setPanelOpen(true)} className="gap-1.5 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300">
+                <Button onClick={() => setPanelOpen(true)} className="gap-1.5 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
@@ -281,7 +281,7 @@ export default function UpscalePage() {
               <Label>Source Video <span className="text-destructive">*</span></Label>
               <Button
                 variant={sourceVideoPath ? "secondary" : "outline"}
-                className={`w-full h-14 border-dashed transition-all duration-300 ${sourceVideoPath ? "shadow-[0_0_12px_oklch(0.715_0.165_195/0.15)]" : "hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"}`}
+                className={`w-full h-14 border-dashed transition-all duration-300 ${sourceVideoPath ? "shadow-sm" : "hover:shadow-md"}`}
                 onClick={uploadVideo}
               >
                 {sourceVideoPath ? (
@@ -332,8 +332,8 @@ export default function UpscalePage() {
                     onClick={() => setScale(s)}
                     className={`flex-1 py-2 text-xs font-medium rounded-md border transition-all duration-300 ${
                       scale === s
-                        ? "bg-primary text-primary-foreground border-primary shadow-[0_0_12px_oklch(0.585_0.233_264/0.2)]"
-                        : "bg-background hover:bg-accent border-border hover:-translate-y-0.5 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)]"
+                        ? "bg-primary text-primary-foreground border-primary shadow-[0_0_12px_var(--glow-primary)]"
+                        : "bg-background hover:bg-accent border-border hover:-translate-y-0.5 hover:shadow-md"
                     }`}
                   >
                     {s === 1 ? "1x (FPS)" : `${s}x`}
@@ -353,8 +353,8 @@ export default function UpscalePage() {
                       onClick={() => setTargetFps(f)}
                       className={`flex-1 py-2 text-xs font-medium rounded-md border transition-all duration-300 ${
                         targetFps === f
-                          ? "bg-primary text-primary-foreground border-primary shadow-[0_0_12px_oklch(0.585_0.233_264/0.2)]"
-                          : "bg-background hover:bg-accent border-border hover:-translate-y-0.5 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)]"
+                          ? "bg-primary text-primary-foreground border-primary shadow-[0_0_12px_var(--glow-primary)]"
+                          : "bg-background hover:bg-accent border-border hover:-translate-y-0.5 hover:shadow-md"
                       }`}
                     >
                       {f === 0 ? "Original" : `${f}`}
@@ -370,7 +370,7 @@ export default function UpscalePage() {
           {/* Sticky footer */}
           <div className="shrink-0 border-t border-border/40 bg-background/80 backdrop-blur-sm px-6 py-4 space-y-2">
             <Button
-              className="w-full shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300 disabled:shadow-none"
+              className="w-full shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300 disabled:shadow-none"
               size="lg"
               onClick={handleSubmit}
               disabled={!sourceVideoPath || (scale <= 1 && targetFps === 0)}

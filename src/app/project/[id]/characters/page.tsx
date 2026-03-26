@@ -491,7 +491,7 @@ export default function CharactersPage() {
         <Card className="border-dashed border-2 border-primary/20 backdrop-blur-sm bg-card/80">
           <CardContent className="relative flex flex-col items-center justify-center py-20 overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
-            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 shadow-[0_0_25px_oklch(0.585_0.233_264/0.15)] animate-float flex items-center justify-center mb-4">
+            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 shadow-[0_0_25px_var(--glow-primary)] animate-float flex items-center justify-center mb-4">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary/60">
                 <circle cx="9" cy="7" r="4" />
                 <path d="M1 21v-2a4 4 0 014-4h8a4 4 0 014 4v2" />
@@ -502,7 +502,7 @@ export default function CharactersPage() {
             <p className="relative text-sm text-muted-foreground text-center max-w-sm mb-6">
               Characters are automatically extracted when you parse a screenplay, or you can create them manually to begin casting your production.
             </p>
-            <Button onClick={() => setAddDialogOpen(true)} className="relative shadow-[0_0_20px_oklch(0.585_0.233_264/0.2)]">Create Character</Button>
+            <Button onClick={() => setAddDialogOpen(true)} className="relative shadow-[0_0_20px_var(--glow-primary)]">Create Character</Button>
           </CardContent>
         </Card>
         <AddCharacterDialog
@@ -553,7 +553,7 @@ export default function CharactersPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search characters..."
-          className="pl-9 focus:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300 backdrop-blur-sm"
+          className="pl-9 focus:shadow-[0_0_15px_var(--glow-primary)] transition-shadow duration-300 backdrop-blur-sm"
         />
       </div>
 
@@ -583,7 +583,7 @@ export default function CharactersPage() {
                 <Card
                   data-char-card
                   key={char.id}
-                  className="group rounded-xl border border-border/40 cursor-pointer transition-all duration-300 backdrop-blur-sm bg-card/80 hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-1"
+                  className="group rounded-xl border border-border/40 cursor-pointer transition-all duration-300 backdrop-blur-sm bg-card/80 hover:shadow-md hover:-translate-y-1"
                   onClick={() => openDetailSheet(char)}
                 >
                   <CardContent className="p-6">
@@ -673,7 +673,7 @@ export default function CharactersPage() {
                     {/* Avatar area — centered */}
                     <div className="flex flex-col items-center text-center">
                       {primaryImage ? (
-                        <div className="relative w-20 h-20 rounded-full overflow-hidden mb-4 ring-2 ring-primary/20 group-hover:ring-primary/40 group-hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.15)] transition-all duration-300">
+                        <div className="relative w-20 h-20 rounded-full overflow-hidden mb-4 ring-2 ring-primary/20 group-hover:ring-primary/40 group-hover:shadow-md transition-all duration-300">
                           <Image
                             src={`/api/drive/files/${primaryImage.file.id}`}
                             alt={char.name}
@@ -684,7 +684,7 @@ export default function CharactersPage() {
                         </div>
                       ) : (
                         <div
-                          className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mb-4 ring-2 ring-primary/20 group-hover:ring-primary/40 group-hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.15)] transition-all duration-300"
+                          className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mb-4 ring-2 ring-primary/20 group-hover:ring-primary/40 group-hover:shadow-md transition-all duration-300"
                           style={{ backgroundColor: color }}
                         >
                           {char.name.charAt(0).toUpperCase()}
@@ -754,7 +754,7 @@ export default function CharactersPage() {
                         </span>
                         {char.voiceName && (
                           <>
-                            <span className="text-muted-foreground/40">|</span>
+                            <span className="text-muted-foreground">|</span>
                             <Badge
                               variant="secondary"
                               className="text-[10px] h-4 px-1.5 gap-0.5 cursor-pointer hover:bg-accent"
@@ -932,7 +932,7 @@ export default function CharactersPage() {
                   {/* Large reference image or avatar */}
                   <div className="flex justify-center">
                     {primaryImage ? (
-                      <div className="relative w-40 h-40 rounded-xl overflow-hidden ring-2 ring-primary/30 shadow-[0_0_25px_oklch(0.585_0.233_264/0.15)]">
+                      <div className="relative w-40 h-40 rounded-xl overflow-hidden ring-2 ring-primary/30 shadow-[0_0_25px_var(--glow-primary)]">
                         <Image
                           src={`/api/drive/files/${primaryImage.file.id}`}
                           alt={selectedChar.name}
@@ -943,7 +943,7 @@ export default function CharactersPage() {
                       </div>
                     ) : (
                       <div
-                        className="w-40 h-40 rounded-xl flex items-center justify-center text-5xl font-bold text-white ring-2 ring-primary/30 shadow-[0_0_25px_oklch(0.585_0.233_264/0.15)]"
+                        className="w-40 h-40 rounded-xl flex items-center justify-center text-5xl font-bold text-white ring-2 ring-primary/30 shadow-[0_0_25px_var(--glow-primary)]"
                         style={{ backgroundColor: color }}
                       >
                         {selectedChar.name.charAt(0).toUpperCase()}
@@ -1142,14 +1142,14 @@ export default function CharactersPage() {
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-border/40 backdrop-blur-sm bg-muted/30 p-3 text-center">
-                      <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_oklch(0.585_0.233_264/0.3)]">{selectedChar.dialogueCount}</p>
+                      <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_var(--glow-primary)]">{selectedChar.dialogueCount}</p>
                       <p className="text-xs text-muted-foreground">Dialogue Lines</p>
                     </div>
                     <div className="rounded-lg border border-border/40 backdrop-blur-sm bg-muted/30 p-3 text-center">
                       {detailsLoading ? (
                         <Skeleton className="h-8 w-10 mx-auto mb-1" />
                       ) : (
-                        <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_oklch(0.585_0.233_264/0.3)]">{selectedCharDetails?.sceneCount ?? "--"}</p>
+                        <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_var(--glow-primary)]">{selectedCharDetails?.sceneCount ?? "--"}</p>
                       )}
                       <p className="text-xs text-muted-foreground">Scene Appearances</p>
                     </div>
@@ -1205,8 +1205,8 @@ export default function CharactersPage() {
                             key={img.linkId}
                             className={`relative aspect-square rounded-lg overflow-hidden bg-muted border cursor-pointer group/img transition-all duration-300 ${
                               img.isPrimary
-                                ? "border-primary ring-2 ring-primary/30 shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)]"
-                                : "border-border/40 hover:border-primary/40 hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.1)]"
+                                ? "border-primary ring-2 ring-primary/30 shadow-[0_0_12px_var(--glow-primary)]"
+                                : "border-border/40 hover:border-primary/40 hover:shadow-md"
                             }`}
                             onClick={() => handleSetPrimaryImage(selectedChar.id, img.linkId)}
                             title={img.isPrimary ? "Current cover" : "Set as cover image"}
@@ -1241,7 +1241,7 @@ export default function CharactersPage() {
                   {/* Quick actions */}
                   <div className="space-y-2 pt-2">
                     <Link href={`/project/${projectId}/generate?character=${encodeURIComponent(selectedChar.name)}`} className="block">
-                      <Button variant="default" className="w-full shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300">
+                      <Button variant="default" className="w-full shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2">
                           <rect x="3" y="3" width="18" height="18" rx="2" />
                           <circle cx="8.5" cy="8.5" r="1.5" />
@@ -1480,7 +1480,7 @@ export default function CharactersPage() {
 
       {/* Audio preview floating player */}
       {previewAudio && (
-        <div className="fixed bottom-4 right-4 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl shadow-[0_0_25px_oklch(0.585_0.233_264/0.15)] p-3 flex items-center gap-3 z-50 animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-4 right-4 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl shadow-[0_0_25px_var(--glow-primary)] p-3 flex items-center gap-3 z-50 animate-in slide-in-from-bottom-4">
           <div className="flex-1">
             <p className="text-xs font-medium mb-1">{previewAudio.name}</p>
             <audio controls src={previewAudio.url} autoPlay className="h-8 w-48" />
@@ -1595,7 +1595,7 @@ export default function CharactersPage() {
                           key={v.voice_id}
                           className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                             isSelected
-                              ? "border-primary bg-primary/10 shadow-[0_0_8px_oklch(0.585_0.233_264/0.15)]"
+                              ? "border-primary bg-primary/10 shadow-[0_0_8px_var(--glow-primary)]"
                               : "border-transparent hover:bg-accent/50 hover:border-border"
                           }`}
                           onClick={() => {

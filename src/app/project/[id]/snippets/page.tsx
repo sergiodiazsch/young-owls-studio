@@ -209,7 +209,7 @@ export default function SnippetsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Snippets</h1>
           <p className="text-muted-foreground mt-1">Reusable text blocks for AI prompts across your project</p>
         </div>
-        <Button onClick={() => { setEditSnippet(null); setFormOpen(true); }} className="shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300">
+        <Button onClick={() => { setEditSnippet(null); setFormOpen(true); }} className="shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="mr-1.5">
             <path d="M8 3v10M3 8h10" />
           </svg>
@@ -228,7 +228,7 @@ export default function SnippetsPage() {
           placeholder="Search snippets by name or content..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 focus:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300"
+          className="pl-9 focus:shadow-[0_0_10px_var(--glow-primary)] transition-shadow duration-300"
         />
       </div>
 
@@ -240,7 +240,7 @@ export default function SnippetsPage() {
             aria-pressed={!activeTag}
             className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all duration-200 ${
               !activeTag
-                ? "bg-primary/15 text-primary border-primary/30 shadow-[0_0_8px_oklch(0.585_0.233_264/0.15)]"
+                ? "bg-primary/15 text-primary border-primary/30 shadow-[0_0_8px_var(--glow-primary)]"
                 : "dark:bg-white/[0.04] dark:hover:bg-white/[0.06] bg-muted text-muted-foreground border-border hover:bg-accent"
             }`}
           >
@@ -253,7 +253,7 @@ export default function SnippetsPage() {
               aria-pressed={activeTag === tag}
               className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all duration-200 ${
                 activeTag === tag
-                  ? "bg-primary/15 text-primary border-primary/30 shadow-[0_0_8px_oklch(0.585_0.233_264/0.15)]"
+                  ? "bg-primary/15 text-primary border-primary/30 shadow-[0_0_8px_var(--glow-primary)]"
                   : `${tagColor(tag)} border-transparent hover:opacity-80`
               }`}
             >
@@ -281,7 +281,7 @@ export default function SnippetsPage() {
             <p className="relative text-sm text-muted-foreground mb-6 text-center max-w-sm">
               Save reusable prompt snippets for consistent generation across your project.
             </p>
-            <Button onClick={() => { setEditSnippet(null); setFormOpen(true); }} className="relative shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300">
+            <Button onClick={() => { setEditSnippet(null); setFormOpen(true); }} className="relative shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300">
               Create First Snippet
             </Button>
           </CardContent>
@@ -372,7 +372,7 @@ function SnippetCard({ snippet, isGlobal, onEdit, onDelete, onCopy, onDuplicate 
   const category = getSnippetCategory(snippet);
 
   return (
-    <Card data-snippet-card className={`group relative border-l-[3px] ${borderClass} backdrop-blur-sm bg-card/80 border-border/40 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5 transition-all duration-300`}>
+    <Card data-snippet-card className={`group relative border-l-[3px] ${borderClass} backdrop-blur-sm bg-card/80 border-border/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300`}>
       <CardContent className="p-4">
         {/* Top row: title + shortcut + actions */}
         <div className="flex items-start gap-2">
@@ -399,7 +399,7 @@ function SnippetCard({ snippet, isGlobal, onEdit, onDelete, onCopy, onDuplicate 
             {/* Quick Copy - always visible */}
             <button
               onClick={onCopy}
-              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 px-2 py-1.5 rounded-md transition-all duration-200 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.15)] active:shadow-[0_0_15px_oklch(0.585_0.233_264/0.3)]"
+              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 px-2 py-1.5 rounded-md transition-all duration-200 hover:shadow-md active:shadow-[0_0_15px_var(--glow-primary)]"
               title="Quick Copy"
               aria-label="Copy snippet to clipboard"
             >
@@ -456,7 +456,7 @@ function SnippetCard({ snippet, isGlobal, onEdit, onDelete, onCopy, onDuplicate 
             {snippet.tags.map((tag) => (
               <span
                 key={tag}
-                className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium shadow-[0_0_6px_oklch(0.585_0.233_264/0.08)] ${tagColor(tag)}`}
+                className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium shadow-[0_0_6px_var(--glow-primary)] ${tagColor(tag)}`}
               >
                 {tag}
               </span>

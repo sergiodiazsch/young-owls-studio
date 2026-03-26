@@ -473,7 +473,7 @@ export default function MoodboardBuilderPage() {
       {board.items.length === 0 ? (
         <Card className="border-dashed border-2 border-border/40 backdrop-blur-sm bg-card/80">
           <CardContent className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-4 shadow-[0_0_25px_oklch(0.585_0.233_264/0.15)]">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-4 shadow-[0_0_25px_var(--glow-primary)]">
               <svg
                 width="24"
                 height="24"
@@ -621,7 +621,7 @@ export default function MoodboardBuilderPage() {
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {suggestions.suggestions.map((prompt, i) => (
-                        <Card key={i} className="border-border/40 backdrop-blur-sm bg-card/80 hover:border-primary/30 transition-all duration-300 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.08)]">
+                        <Card key={i} className="border-border/40 backdrop-blur-sm bg-card/80 hover:border-primary/30 transition-all duration-300 hover:shadow-md">
                           <CardContent className="p-3">
                             <p className="text-xs text-muted-foreground line-clamp-3">
                               {prompt}
@@ -667,7 +667,7 @@ export default function MoodboardBuilderPage() {
                         <button
                           key={i}
                           onClick={() => addSuggestedColor(hex)}
-                          className="group flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/60 transition-all duration-300 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)]"
+                          className="group flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/60 transition-all duration-300 hover:shadow-md"
                           title={`Add ${hex} to board`}
                         >
                           <div
@@ -952,7 +952,7 @@ function MoodboardItemCard({
         : null;
 
     return (
-      <Card className="group overflow-hidden border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5">
+      <Card className="group overflow-hidden border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
         <div className={`relative bg-muted/30 ${gridMode ? "aspect-square" : ""}`}>
           {imgSrc ? (
             gridMode ? (
@@ -1034,7 +1034,7 @@ function MoodboardItemCard({
 
   if (item.type === "text") {
     return (
-      <Card className="group border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5">
+      <Card className="group border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
         <CardContent className="p-3 relative">
           <button
             onClick={onDelete}
@@ -1098,7 +1098,7 @@ function MoodboardItemCard({
 
   if (item.type === "color") {
     return (
-      <Card className="group border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5 overflow-hidden">
+      <Card className="group border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 overflow-hidden">
         <div
           className="h-20 relative"
           style={{ backgroundColor: item.colorValue || "#888" }}

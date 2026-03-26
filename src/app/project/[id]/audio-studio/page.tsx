@@ -409,7 +409,7 @@ export default function AudioStudioPage() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-background text-foreground">
       {/* -- Header bar -- */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 shadow-[0_1px_20px_oklch(0.585_0.233_264/0.06)]">
+      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/40 shadow-[0_1px_20px_var(--glow-primary)]">
         <div className="px-4 md:px-6 py-3 flex items-center gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap">Audio Studio</h1>
@@ -503,7 +503,7 @@ export default function AudioStudioPage() {
       <div className="p-4 md:p-6">
         {filteredGenerations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-5 shadow-[0_0_30px_oklch(0.715_0.165_195/0.15)]">
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-5 shadow-sm">
               <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
                 <path d="M8 1v14M4 4v8M12 4v8M2 6v4M6 3v10M10 3v10M14 6v4" />
               </svg>
@@ -538,19 +538,19 @@ export default function AudioStudioPage() {
               return (
                 <div
                   key={gen.id}
-                  className="flex items-center gap-3 rounded-xl border border-border/40 backdrop-blur-sm bg-card/80 p-3.5 transition-all duration-300 hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+                  className="flex items-center gap-3 rounded-xl border border-border/40 backdrop-blur-sm bg-card/80 p-3.5 transition-all duration-300 hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-md"
                 >
                   {/* Status icon / waveform */}
                   <div className="shrink-0">
                     {gen.status === "generating" ? (
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shadow-[0_0_12px_oklch(0.585_0.233_264/0.25)]">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shadow-[0_0_12px_var(--glow-primary)]">
                         <svg className="animate-spin h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="10" className="opacity-25" />
                           <path d="M4 12a8 8 0 018-8" className="opacity-75" />
                         </svg>
                       </div>
                     ) : gen.status === "failed" ? (
-                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shadow-[0_0_12px_oklch(0.65_0.2_25/0.2)]">
+                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shadow-sm">
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-destructive">
                           <path d="M4 4l8 8M12 4l-8 8" />
                         </svg>
@@ -559,7 +559,7 @@ export default function AudioStudioPage() {
                       /* Waveform visualization for completed items */
                       <button
                         onClick={() => handlePlay(gen)}
-                        className="flex items-end gap-[2px] h-10 px-1.5 rounded-lg hover:bg-primary/10 transition-all duration-300 cursor-pointer hover:shadow-[0_0_10px_oklch(0.715_0.165_195/0.15)]"
+                        className="flex items-end gap-[2px] h-10 px-1.5 rounded-lg hover:bg-primary/10 transition-all duration-300 cursor-pointer hover:shadow-sm"
                         aria-label={isPlaying ? "Pause audio" : "Play audio"}
                         title={isPlaying ? "Pause" : "Play"}
                       >
@@ -675,7 +675,7 @@ export default function AudioStudioPage() {
 
       {/* -- Creation Panel (Sheet) -- */}
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-        <SheetContent side="right" className="w-[400px] sm:max-w-[400px] p-0 flex flex-col bg-background/95 backdrop-blur-md border-border/40 text-foreground shadow-[0_0_30px_oklch(0.585_0.233_264/0.08)]">
+        <SheetContent side="right" className="w-[400px] sm:max-w-[400px] p-0 flex flex-col bg-background/95 backdrop-blur-md border-border/40 text-foreground shadow-[0_0_30px_var(--glow-primary)]">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60 shrink-0">
             <SheetTitle className="text-foreground">Create Audio</SheetTitle>
           </SheetHeader>
@@ -782,7 +782,7 @@ export default function AudioStudioPage() {
                     : "e.g., I never thought it would end like this..."
                 }
                 rows={3}
-                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               {audioType === "voice" && (
                 <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
@@ -851,7 +851,7 @@ export default function AudioStudioPage() {
                   value={negativePrompt}
                   onChange={(e) => setNegativePrompt(e.target.value)}
                   placeholder="e.g., vocals, distortion, electronic beats"
-                  className="border-border bg-card text-foreground placeholder:text-muted-foreground/50"
+                  className="border-border bg-card text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             )}
@@ -866,7 +866,7 @@ export default function AudioStudioPage() {
                   <button
                     key={preset.label}
                     onClick={() => setPrompt(preset.prompt)}
-                    className="text-left rounded-lg border border-border/40 backdrop-blur-sm bg-card/80 px-3 py-2 text-sm hover:bg-muted/60 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.08)] transition-all duration-300 group"
+                    className="text-left rounded-lg border border-border/40 backdrop-blur-sm bg-card/80 px-3 py-2 text-sm hover:bg-muted/60 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 group"
                   >
                     <p className="font-medium text-xs text-muted-foreground group-hover:text-primary transition-colors">{preset.label}</p>
                     <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{preset.prompt}</p>

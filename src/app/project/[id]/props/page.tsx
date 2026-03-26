@@ -342,7 +342,7 @@ export default function PropsPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-3xl font-bold text-muted-foreground/30">
+                        <span className="text-3xl font-bold text-muted-foreground">
                           {prop.name.charAt(0).toUpperCase()}
                         </span>
                       </div>

@@ -123,7 +123,7 @@ const BREAKDOWN_TOOL: Anthropic.Tool = {
   },
 };
 
-const SYSTEM_PROMPT = `You are an expert AI Video Production Director. You specialize in planning the production of animated/AI-generated video content from screenplays.
+const BASE_SYSTEM_PROMPT = `You are an expert AI Video Production Director. You specialize in planning the production of animated/AI-generated video content from screenplays.
 
 Your job: analyze a screenplay scene and create a complete production breakdown for AI video generation. Think about this like a real director planning their shot list, but instead of a physical set and actors, every visual element will be AI-generated images that are then animated into video clips.
 
@@ -144,6 +144,55 @@ KEY PRINCIPLES:
 5. AUDIO: Identify all dialogue lines, ambient sounds, sound effects, and music cues needed.
 
 Be thorough but practical. A typical 1-page scene might need 8-15 images and 10-20 video clips.`;
+
+// Production style prompts — duplicated from src/lib/production-style.ts because
+// Netlify background functions can't import from the Next.js src directory.
+const PRODUCTION_STYLE_PROMPTS: Record<string, string> = {
+  childrens_animation: `
+PRODUCTION STYLE: CHILDREN'S ANIMATION (ages 2-8)
+Apply these rules to ALL breakdown decisions:
+
+SHOT PLANNING & FRAMING:
+- Favor WIDE and MEDIUM shots — kids need to see the full body and environment
+- Close-ups should be BRIEF and used for emotional beats only
+- Keep camera movements SIMPLE: gentle pans, slow zooms. No handheld shake.
+- Shot duration: 3-5 seconds per shot. Never hold longer than 6 seconds.
+- Establishing shots are essential — always show WHERE we are before WHAT happens
+- Character eyelines should be clear — kids need to see who is talking to whom
+- Bright, saturated color palettes. High contrast between characters and backgrounds.
+
+PACING:
+- Scenes should be SHORT: 30-90 seconds max
+- Fast scene transitions — cut, don't fade. Fun transitions (wipes) are OK.
+- Every 2-3 minutes needs a new energy spike
+- Shot duration: 3-5 seconds. Never hold longer than 6 seconds.
+
+AUDIO:
+- Music should be prominent — guides emotional state for pre-literate viewers
+- Sound effects should be exaggerated and fun (cartoon physics)
+- Ambient sound should be MINIMAL
+- Consider singalong or musical moments`,
+  documentary: `
+PRODUCTION STYLE: DOCUMENTARY
+- Favor interview setups + B-roll alternation
+- Longer shot durations OK (5-15s for atmospheric B-roll)
+- Understated music, never competing with narration`,
+  commercial: `
+PRODUCTION STYLE: COMMERCIAL
+- Quick cuts (1-3 seconds per shot)
+- Hook in the first 2 seconds
+- Product/message must be clear`,
+  music_video: `
+PRODUCTION STYLE: MUSIC VIDEO
+- Cuts aligned with beat/rhythm
+- Visual storytelling over dialogue
+- Creative, stylized transitions`,
+};
+
+function getSystemPrompt(productionStyle?: string | null): string {
+  const stylePrompt = (productionStyle && PRODUCTION_STYLE_PROMPTS[productionStyle]) || "";
+  return BASE_SYSTEM_PROMPT + stylePrompt;
+}
 
 /* ── Handler ── */
 
@@ -187,6 +236,10 @@ async function handler(event: HandlerEvent) {
     }
     const scene = sceneRows[0];
 
+    // Load project to get production style
+    const projectRows = await sql`SELECT production_style FROM projects WHERE id = ${projectId}`;
+    const productionStyle = projectRows[0]?.production_style as string | null;
+
     const dialogueRows = await sql`SELECT * FROM dialogues WHERE scene_id = ${sceneId} ORDER BY sort_order ASC`;
     const directionRows = await sql`SELECT * FROM directions WHERE scene_id = ${sceneId} ORDER BY sort_order ASC`;
 
@@ -228,7 +281,7 @@ async function handler(event: HandlerEvent) {
       max_tokens: 12000,
       tool_choice: { type: "tool", name: "scene_breakdown" },
       tools: [BREAKDOWN_TOOL],
-      system: SYSTEM_PROMPT,
+      system: getSystemPrompt(productionStyle),
       messages: [
         {
           role: "user",

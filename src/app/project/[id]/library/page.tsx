@@ -124,7 +124,7 @@ export default function LibraryPage() {
       ) : filtered.length === 0 ? (
         <Card className="border-dashed border-2 border-border/40">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground/40 mb-4">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground mb-4">
               <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
               <polyline points="16 6 12 2 8 6" />
               <line x1="12" y1="2" x2="12" y2="15" />

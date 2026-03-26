@@ -569,6 +569,7 @@ async function doEnsureSchema() {
   await addColumnIfMissing("characters", "backstory", "TEXT");
   await addColumnIfMissing("characters", "ai_generation_notes", "TEXT");
   await addColumnIfMissing("characters", "ai_script_notes", "TEXT");
+  await addColumnIfMissing("projects", "production_style", "TEXT");
 
   // ── Performance indexes ──
   await pool.query(`

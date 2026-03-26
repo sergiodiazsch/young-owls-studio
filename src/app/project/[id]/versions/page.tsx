@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { gsap } from "@/lib/gsap";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,10 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ScreenplayBranch, DiffResult } from "@/lib/types";
 
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
+
 interface VersionRow {
   id: number;
   projectId: number;
@@ -30,6 +34,175 @@ interface VersionRow {
   stats: string | null;
   createdAt: string;
 }
+
+interface ParsedStats {
+  sceneCount: number;
+  dialogueCount: number;
+  directionCount: number;
+  characterCount: number;
+  wordCount: number;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function parseStats(statsStr: string | null): ParsedStats | null {
+  if (!statsStr) return null;
+  try {
+    return JSON.parse(statsStr) as ParsedStats;
+  } catch {
+    return null;
+  }
+}
+
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} minute${mins !== 1 ? "s" : ""} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days !== 1 ? "s" : ""} ago`;
+  const months = Math.floor(days / 30);
+  return `${months} month${months !== 1 ? "s" : ""} ago`;
+}
+
+function localeTimestamp(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+/** Color classes for timeline dots by trigger type (#4) */
+function getTriggerDotColor(type: string): string {
+  const map: Record<string, string> = {
+    manual_save: "border-primary bg-primary shadow-[0_0_10px_var(--glow-primary)]",
+    manual_edit: "border-primary bg-primary shadow-[0_0_10px_var(--glow-primary)]",
+    ai_modify: "border-violet-500 bg-violet-500 shadow-md",
+    ai_polish: "border-violet-500 bg-violet-500 shadow-md",
+    revert: "border-orange-500 bg-orange-500 shadow-md",
+    import: "border-emerald-500 bg-emerald-500 shadow-md",
+    branch_switch: "border-cyan-400 bg-cyan-400 shadow-md",
+  };
+  return map[type] || "border-primary bg-primary shadow-[0_0_10px_var(--glow-primary)]";
+}
+
+/** Badge classes for trigger type */
+function getTriggerBadge(type: string) {
+  const colors: Record<string, string> = {
+    manual_edit: "bg-primary/15 text-primary",
+    manual_save: "bg-muted text-muted-foreground",
+    ai_modify: "bg-violet-500/15 text-violet-400",
+    ai_polish: "bg-violet-500/15 text-violet-400",
+    revert: "bg-orange-500/15 text-orange-400",
+    import: "bg-emerald-500/15 text-emerald-400",
+    branch_switch: "bg-cyan-400/15 text-cyan-300",
+  };
+  return colors[type] || "bg-muted text-muted-foreground";
+}
+
+/** Trigger type filter categories (#5) */
+type TriggerFilter = "all" | "manual" | "ai" | "revert";
+
+const TRIGGER_FILTERS: { value: TriggerFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "manual", label: "Manual" },
+  { value: "ai", label: "AI" },
+  { value: "revert", label: "Revert" },
+];
+
+function matchesTriggerFilter(triggerType: string, filter: TriggerFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "manual") return triggerType === "manual_save" || triggerType === "manual_edit" || triggerType === "import" || triggerType === "branch_switch";
+  if (filter === "ai") return triggerType === "ai_modify" || triggerType === "ai_polish";
+  if (filter === "revert") return triggerType === "revert";
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Stats chips component (#1)                                         */
+/* ------------------------------------------------------------------ */
+
+function StatsChips({ stats }: { stats: ParsedStats }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border-border/50">
+        {stats.sceneCount} scene{stats.sceneCount !== 1 ? "s" : ""}
+      </Badge>
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border-border/50">
+        {stats.dialogueCount} dialogue{stats.dialogueCount !== 1 ? "s" : ""}
+      </Badge>
+      {stats.characterCount > 0 && (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border-border/50">
+          {stats.characterCount} character{stats.characterCount !== 1 ? "s" : ""}
+        </Badge>
+      )}
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border-border/50">
+        {formatCount(stats.wordCount)} words
+      </Badge>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Inline diff chips component (#2)                                   */
+/* ------------------------------------------------------------------ */
+
+function InlineDiffChips({ current, previous }: { current: ParsedStats; previous: ParsedStats }) {
+  const diffs: { label: string; delta: number }[] = [];
+
+  const sceneDiff = current.sceneCount - previous.sceneCount;
+  const dialogueDiff = current.dialogueCount - previous.dialogueCount;
+  const wordDiff = current.wordCount - previous.wordCount;
+
+  if (sceneDiff !== 0) diffs.push({ label: `${sceneDiff > 0 ? "+" : ""}${sceneDiff} scene${Math.abs(sceneDiff) !== 1 ? "s" : ""}`, delta: sceneDiff });
+  if (dialogueDiff !== 0) diffs.push({ label: `${dialogueDiff > 0 ? "+" : ""}${dialogueDiff} dialogue${Math.abs(dialogueDiff) !== 1 ? "s" : ""}`, delta: dialogueDiff });
+  if (wordDiff !== 0) diffs.push({ label: `${wordDiff > 0 ? "+" : ""}${formatCount(wordDiff)} words`, delta: wordDiff });
+
+  if (diffs.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+      {diffs.map((d, i) => (
+        <span
+          key={i}
+          className={`text-[10px] font-medium ${
+            d.delta > 0
+              ? "text-emerald-400"
+              : "text-destructive"
+          }`}
+        >
+          {d.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Stats summary string for restore dialog (#3)                       */
+/* ------------------------------------------------------------------ */
+
+function statsSummary(stats: ParsedStats | null): string {
+  if (!stats) return "No stats available";
+  return `${stats.sceneCount} scene${stats.sceneCount !== 1 ? "s" : ""}, ${stats.dialogueCount} dialogue${stats.dialogueCount !== 1 ? "s" : ""}, ${formatCount(stats.wordCount)} words`;
+}
+
+/* ================================================================== */
+/*  Page Component                                                     */
+/* ================================================================== */
 
 export default function VersionsPage() {
   const params = useParams();
@@ -64,7 +237,18 @@ export default function VersionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; versionNumber: number } | null>(null);
   const [revertTarget, setRevertTarget] = useState<{ id: number; versionNumber: number } | null>(null);
 
+  // (#5) Search & filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [triggerFilter, setTriggerFilter] = useState<TriggerFilter>("all");
+
+  // (#6) Comparison picker
+  const [compareSelection, setCompareSelection] = useState<number[]>([]);
+
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  /* -------------------------------------------------------------- */
+  /*  GSAP entrance animation                                        */
+  /* -------------------------------------------------------------- */
 
   useEffect(() => {
     if (!timelineRef.current || loading || versions.length === 0) return;
@@ -74,12 +258,55 @@ export default function VersionsPage() {
     gsap.from(cards, { opacity: 0, y: 8, stagger: 0.04, duration: 0.3, ease: "power2.out", clearProps: "all" });
   }, [loading, versions.length]);
 
+  /* -------------------------------------------------------------- */
+  /*  Keyboard shortcuts (#8)                                        */
+  /* -------------------------------------------------------------- */
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Ignore if user is typing in an input / textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        setSaveDialogOpen(true);
+      }
+      if (e.key === "Escape") {
+        setSaveDialogOpen(false);
+        setBranchDialogOpen(false);
+        setDiffResult(null);
+        setDiffFrom(null);
+        setDiffTo(null);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  /* -------------------------------------------------------------- */
+  /*  Data fetching                                                   */
+  /* -------------------------------------------------------------- */
+
   const fetchVersions = useCallback(() => {
     const branchParam = selectedBranch !== "all" ? `&branchId=${selectedBranch}` : "";
     fetch(`/api/versions?projectId=${projectId}${branchParam}`)
       .then((r) => r.json())
       .then((data) => {
-        setVersions(Array.isArray(data) ? data : (data.versions || []));
+        const raw = Array.isArray(data) ? data : (data.versions || []);
+        // API returns snake_case, map to camelCase
+        const mapped: VersionRow[] = raw.map((v: Record<string, unknown>) => ({
+          id: v.id as number,
+          projectId: (v.projectId ?? v.project_id) as number,
+          branchId: (v.branchId ?? v.branch_id ?? null) as number | null,
+          versionNumber: (v.versionNumber ?? v.version_number) as number,
+          label: (v.label ?? null) as string | null,
+          triggerType: (v.triggerType ?? v.trigger_type ?? "manual_save") as string,
+          triggerDetail: (v.triggerDetail ?? v.trigger_detail ?? null) as string | null,
+          stats: (v.stats ?? null) as string | null,
+          createdAt: (v.createdAt ?? v.created_at ?? "") as string,
+        }));
+        setVersions(mapped);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -96,6 +323,10 @@ export default function VersionsPage() {
     fetchVersions();
     fetchBranches();
   }, [fetchVersions, fetchBranches]);
+
+  /* -------------------------------------------------------------- */
+  /*  Actions                                                         */
+  /* -------------------------------------------------------------- */
 
   async function handleSaveVersion() {
     setSaving(true);
@@ -351,70 +582,9 @@ export default function VersionsPage() {
     }
   }
 
-  function getTriggerBadge(type: string) {
-    const colors: Record<string, string> = {
-      manual_edit: "bg-primary/15 text-primary",
-      ai_modify: "bg-primary/10 text-primary",
-      ai_polish: "bg-primary/10 text-primary",
-      revert: "bg-destructive/15 text-destructive",
-      manual_save: "bg-muted text-muted-foreground",
-      import: "bg-muted text-muted-foreground",
-    };
-    return colors[type] || "bg-muted text-muted-foreground";
-  }
-
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins} minute${mins !== 1 ? "s" : ""} ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} day${days !== 1 ? "s" : ""} ago`;
-    const months = Math.floor(days / 30);
-    return `${months} month${months !== 1 ? "s" : ""} ago`;
-  }
-
-  function parseStats(statsStr: string | null): { scenes: number; dialogues: number; wordCount: number } | null {
-    if (!statsStr) return null;
-    try { return JSON.parse(statsStr); } catch { return null; }
-  }
-
-  function buildDiffSummary(v: VersionRow, index: number): string | null {
-    const stats = parseStats(v.stats);
-    if (!stats) return null;
-    // For the first (latest) version or when we only have absolute stats, show counts
-    if (index === versions.length - 1) {
-      return `Initial: ${stats.scenes} scene${stats.scenes !== 1 ? "s" : ""}, ${stats.dialogues} dialogue${stats.dialogues !== 1 ? "s" : ""}, ${(stats.wordCount || 0).toLocaleString()} words`;
-    }
-    // Compare with the next (older) version
-    const olderVersion = versions[index + 1];
-    const olderStats = parseStats(olderVersion?.stats);
-    if (!olderStats) {
-      return `${stats.scenes} scene${stats.scenes !== 1 ? "s" : ""}, ${stats.dialogues} dialogue${stats.dialogues !== 1 ? "s" : ""}, ${(stats.wordCount || 0).toLocaleString()} words`;
-    }
-    const parts: string[] = [];
-    const sceneDiff = stats.scenes - olderStats.scenes;
-    const dialogueDiff = stats.dialogues - olderStats.dialogues;
-    const wordDiff = (stats.wordCount || 0) - (olderStats.wordCount || 0);
-    if (sceneDiff > 0) parts.push(`Added ${sceneDiff} scene${sceneDiff !== 1 ? "s" : ""}`);
-    else if (sceneDiff < 0) parts.push(`Removed ${Math.abs(sceneDiff)} scene${Math.abs(sceneDiff) !== 1 ? "s" : ""}`);
-    if (dialogueDiff > 0) parts.push(`added ${dialogueDiff} dialogue${dialogueDiff !== 1 ? "s" : ""}`);
-    else if (dialogueDiff < 0) parts.push(`removed ${Math.abs(dialogueDiff)} dialogue${Math.abs(dialogueDiff) !== 1 ? "s" : ""}`);
-    if (wordDiff !== 0 && parts.length < 2) {
-      const sign = wordDiff > 0 ? "+" : "";
-      parts.push(`${sign}${wordDiff.toLocaleString()} words`);
-    }
-    if (parts.length === 0) {
-      return `${stats.scenes} scene${stats.scenes !== 1 ? "s" : ""}, ${stats.dialogues} dialogue${stats.dialogues !== 1 ? "s" : ""}`;
-    }
-    // Capitalize first part
-    if (parts.length > 0) {
-      parts[0] = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-    }
-    return parts.join(", ");
-  }
+  /* -------------------------------------------------------------- */
+  /*  Derived data                                                    */
+  /* -------------------------------------------------------------- */
 
   function getBranchLabel(branchId: number | null): string | null {
     if (branchId === null) return null;
@@ -431,40 +601,86 @@ export default function VersionsPage() {
     })),
   ];
 
-  // Loading skeleton — timeline layout
+  // (#5) Filtered versions
+  const filteredVersions = useMemo(() => {
+    return versions.filter((v) => {
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const labelMatch = v.label?.toLowerCase().includes(q);
+        const versionMatch = `v${v.versionNumber}`.includes(q);
+        const triggerMatch = v.triggerType.replace(/_/g, " ").toLowerCase().includes(q);
+        if (!labelMatch && !versionMatch && !triggerMatch) return false;
+      }
+      // Trigger type filter
+      if (!matchesTriggerFilter(v.triggerType, triggerFilter)) return false;
+      return true;
+    });
+  }, [versions, searchQuery, triggerFilter]);
+
+  // (#6) Comparison picker handler
+  function toggleCompareSelection(versionId: number) {
+    setCompareSelection((prev) => {
+      if (prev.includes(versionId)) return prev.filter((id) => id !== versionId);
+      if (prev.length >= 2) return [prev[1], versionId];
+      return [...prev, versionId];
+    });
+  }
+
+  // (#3) Restore dialog description with stats comparison
+  function getRestoreDescription(): string {
+    if (!revertTarget) return "";
+    const currentLatest = versions[0];
+    const targetVersion = versions.find((v) => v.id === revertTarget.id);
+    const currentStats = currentLatest ? parseStats(currentLatest.stats) : null;
+    const targetStats = targetVersion ? parseStats(targetVersion.stats) : null;
+
+    let desc = `Restore the screenplay to version v${revertTarget.versionNumber}? Current changes since this version will remain in version history.`;
+
+    if (currentStats && targetStats) {
+      desc += `\n\nCurrent: ${statsSummary(currentStats)}\nRestoring to: ${statsSummary(targetStats)}`;
+    }
+
+    return desc;
+  }
+
+  /* -------------------------------------------------------------- */
+  /*  Loading skeleton (#9 — uses bg-muted for theme support)        */
+  /* -------------------------------------------------------------- */
+
   if (loading) {
     return (
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-4xl mx-auto flex flex-col gap-6">
         {/* Header skeleton */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-28" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-8 w-48 bg-muted" />
+            <Skeleton className="h-4 w-28 bg-muted" />
           </div>
-          <Skeleton className="h-11 w-40 rounded-lg" />
+          <Skeleton className="h-11 w-40 rounded-lg bg-muted" />
         </div>
         {/* Branch tabs skeleton */}
         <div className="flex gap-1">
-          <Skeleton className="h-8 w-24 rounded-md" />
-          <Skeleton className="h-8 w-20 rounded-md" />
+          <Skeleton className="h-8 w-24 rounded-md bg-muted" />
+          <Skeleton className="h-8 w-20 rounded-md bg-muted" />
         </div>
         {/* Timeline skeleton */}
         <div className="relative pl-8">
           <div className="absolute left-[11px] top-2 bottom-2 w-[2px] bg-muted" />
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="relative flex items-start gap-4 pb-8">
-              <Skeleton className="absolute left-[-21px] top-1 h-3 w-3 rounded-full shrink-0" />
-              <div className="flex-1 space-y-2">
+              <Skeleton className="absolute left-[-21px] top-1 h-3 w-3 rounded-full shrink-0 bg-muted" />
+              <div className="flex-1 flex flex-col gap-2">
                 <div className="flex items-center gap-3">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-4 w-24 bg-muted" />
+                  <Skeleton className="h-5 w-14 rounded-full bg-muted" />
                 </div>
-                <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-3 w-48" />
+                <Skeleton className="h-3 w-32 bg-muted" />
+                <Skeleton className="h-3 w-48 bg-muted" />
               </div>
               <div className="flex gap-1">
-                <Skeleton className="h-7 w-16 rounded-md" />
-                <Skeleton className="h-7 w-16 rounded-md" />
+                <Skeleton className="h-7 w-16 rounded-md bg-muted" />
+                <Skeleton className="h-7 w-16 rounded-md bg-muted" />
               </div>
             </div>
           ))}
@@ -473,9 +689,13 @@ export default function VersionsPage() {
     );
   }
 
+  /* -------------------------------------------------------------- */
+  /*  Render                                                          */
+  /* -------------------------------------------------------------- */
+
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      {/* Header — Save Version is now the dominant primary action */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Version History</h1>
@@ -510,7 +730,7 @@ export default function VersionsPage() {
           <Button
             size="default"
             onClick={() => setSaveDialogOpen(true)}
-            className="font-semibold px-5 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300"
+            className="font-semibold px-5 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-2">
               <path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" />
@@ -521,9 +741,9 @@ export default function VersionsPage() {
         </div>
       </div>
 
-      {/* Branch filter — tab-style toggle */}
+      {/* Branch filter tabs */}
       {branches.length > 0 && (
-        <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1" role="tablist" aria-label="Filter by branch">
+        <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1" role="tablist" aria-label="Filter by branch">
           {branchTabs.map((tab) => (
             <button
               key={tab.value}
@@ -533,7 +753,7 @@ export default function VersionsPage() {
               className={`
                 px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all duration-300
                 ${selectedBranch === tab.value
-                  ? "bg-primary text-primary-foreground shadow-[0_0_10px_oklch(0.715_0.165_195/0.2)]"
+                  ? "bg-primary text-primary-foreground shadow-[0_0_10px_var(--glow-primary)]"
                   : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                 }
               `}
@@ -544,18 +764,109 @@ export default function VersionsPage() {
         </div>
       )}
 
+      {/* (#5) Search & trigger filter */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+        <div className="relative flex-1 max-w-sm">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          >
+            <circle cx="7" cy="7" r="5" />
+            <path d="M11 11l3.5 3.5" />
+          </svg>
+          <Input
+            placeholder="Search versions by label..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          {TRIGGER_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setTriggerFilter(f.value)}
+              className={`
+                px-2.5 py-1 text-[11px] font-medium rounded-md transition-all duration-200
+                ${triggerFilter === f.value
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }
+              `}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* (#6) Comparison picker action bar */}
+      {compareSelection.length === 2 && (
+        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
+          <span className="text-sm text-primary font-medium">
+            Comparing v{versions.find((v) => v.id === compareSelection[0])?.versionNumber} and v{versions.find((v) => v.id === compareSelection[1])?.versionNumber}
+          </span>
+          <Button
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => {
+              const [a, b] = compareSelection;
+              const va = versions.find((v) => v.id === a);
+              const vb = versions.find((v) => v.id === b);
+              if (va && vb) {
+                // older first
+                const fromId = va.versionNumber < vb.versionNumber ? a : b;
+                const toId = va.versionNumber < vb.versionNumber ? b : a;
+                handleDiff(fromId, toId);
+              }
+              setCompareSelection([]);
+            }}
+          >
+            Compare
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setCompareSelection([])}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       {/* Version Timeline */}
-      {versions.length === 0 ? (
+      {filteredVersions.length === 0 && versions.length > 0 ? (
+        /* No results from search/filter */
+        <div className="flex flex-col items-center justify-center py-16">
+          <p className="text-sm text-muted-foreground">No versions match your search or filter.</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={() => {
+              setSearchQuery("");
+              setTriggerFilter("all");
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
+      ) : filteredVersions.length === 0 ? (
         /* Empty state — timeline illustration */
         <div className="flex flex-col items-center justify-center py-20">
-          {/* Timeline illustration: vertical line with empty dots */}
           <div className="relative w-8 mb-6" style={{ height: 120 }}>
-            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 bg-muted-foreground/20 shadow-[0_0_4px_oklch(0.585_0.233_264/0.1)]" />
+            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 bg-muted-foreground/20 shadow-[0_0_4px_var(--glow-primary)]" />
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
                 className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-muted-foreground/25 bg-background"
-                style={{ top: i * 36, boxShadow: i === 0 ? '0 0 8px oklch(0.585 0.233 264 / 0.15)' : undefined }}
+                style={{ top: i * 36, boxShadow: i === 0 ? '0 0 8px var(--glow-primary)' : undefined }}
               />
             ))}
           </div>
@@ -568,7 +879,7 @@ export default function VersionsPage() {
           </p>
           <Button
             onClick={() => setSaveDialogOpen(true)}
-            className="font-semibold px-5 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300"
+            className="font-semibold px-5 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-2">
               <path d="M2 2h9l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" />
@@ -582,30 +893,71 @@ export default function VersionsPage() {
         <div ref={timelineRef} className="relative pl-8">
           {/* Vertical connecting line */}
           <div
-            className="absolute left-[11px] top-1.5 w-[2px] bg-border shadow-[0_0_6px_oklch(0.585_0.233_264/0.15)]"
-            style={{ bottom: versions.length > 1 ? 24 : 0, height: versions.length === 1 ? 0 : undefined }}
+            className="absolute left-[11px] top-1.5 w-[2px] bg-border shadow-[0_0_6px_var(--glow-primary)]"
+            style={{ bottom: filteredVersions.length > 1 ? 24 : 0, height: filteredVersions.length === 1 ? 0 : undefined }}
           />
 
-          {versions.map((v, i) => {
-            const diffSummary = buildDiffSummary(v, i);
+          {filteredVersions.map((v, i) => {
+            const stats = parseStats(v.stats);
             const branchLabel = getBranchLabel(v.branchId);
-            const isLatest = i === 0;
+            const isLatest = i === 0 && triggerFilter === "all" && !searchQuery.trim();
+            const isSelected = compareSelection.includes(v.id);
+
+            // (#2) Find older version for diff chips (use the full versions array for accurate comparison)
+            const fullIndex = versions.findIndex((fv) => fv.id === v.id);
+            const olderVersion = fullIndex < versions.length - 1 ? versions[fullIndex + 1] : null;
+            const olderStats = olderVersion ? parseStats(olderVersion.stats) : null;
 
             return (
               <div key={v.id} data-version-card className="relative pb-8 last:pb-0 group">
-                {/* Timeline dot */}
+                {/* (#4) Timeline dot — color-coded by trigger type */}
                 <div
                   className={`
                     absolute left-[-21px] top-1.5 w-3 h-3 rounded-full border-2 z-10 transition-all duration-300
                     ${isLatest
-                      ? "border-primary bg-primary shadow-[0_0_10px_oklch(0.585_0.233_264/0.4)]"
-                      : "border-border bg-background group-hover:border-primary/50 group-hover:shadow-[0_0_6px_oklch(0.585_0.233_264/0.15)]"
+                      ? getTriggerDotColor(v.triggerType)
+                      : `border-border bg-background group-hover:border-primary/50 group-hover:shadow-md`
                     }
                   `}
+                  style={
+                    !isLatest
+                      ? undefined
+                      : undefined
+                  }
                 />
+
+                {/* Color indicator on hover for non-latest */}
+                {!isLatest && (
+                  <div
+                    className={`
+                      absolute left-[-21px] top-1.5 w-3 h-3 rounded-full border-2 z-10 transition-all duration-300 opacity-0 group-hover:opacity-100
+                      ${getTriggerDotColor(v.triggerType)}
+                    `}
+                  />
+                )}
 
                 {/* Entry content */}
                 <div className="flex items-start justify-between gap-4 min-w-0">
+                  {/* (#6) Comparison checkbox */}
+                  <button
+                    onClick={() => toggleCompareSelection(v.id)}
+                    className={`
+                      mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-all duration-200
+                      ${isSelected
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : "border-border bg-background hover:border-primary/50"
+                      }
+                    `}
+                    title={isSelected ? "Deselect for comparison" : "Select for comparison"}
+                    aria-label={`${isSelected ? "Deselect" : "Select"} version ${v.versionNumber} for comparison`}
+                  >
+                    {isSelected && (
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M3 8l4 4 6-7" />
+                      </svg>
+                    )}
+                  </button>
+
                   <div className="flex-1 min-w-0">
                     {/* Version name row */}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -614,7 +966,7 @@ export default function VersionsPage() {
                         {v.label && <span className="text-foreground"> &mdash; {v.label}</span>}
                       </span>
                       {isLatest && (
-                        <Badge className="text-[10px] px-1.5 py-0 bg-primary/15 text-primary border-primary/20 shadow-[0_0_8px_oklch(0.585_0.233_264/0.2)]">
+                        <Badge className="text-[10px] px-1.5 py-0 bg-primary/15 text-primary border-primary/20 shadow-[0_0_8px_var(--glow-primary)]">
                           LATEST
                         </Badge>
                       )}
@@ -628,16 +980,17 @@ export default function VersionsPage() {
                       )}
                     </div>
 
-                    {/* Timestamp */}
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                    {/* (#7) Timestamp with tooltip */}
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-tight" title={localeTimestamp(v.createdAt)}>
                       {timeAgo(v.createdAt)}
                     </p>
 
-                    {/* Diff summary */}
-                    {diffSummary && (
-                      <p className="text-xs text-muted-foreground/70 mt-0.5 leading-tight">
-                        {diffSummary}
-                      </p>
+                    {/* (#1) Stats chips */}
+                    {stats && <StatsChips stats={stats} />}
+
+                    {/* (#2) Inline diff preview */}
+                    {stats && olderStats && (
+                      <InlineDiffChips current={stats} previous={olderStats} />
                     )}
 
                     {/* Trigger detail */}
@@ -648,7 +1001,7 @@ export default function VersionsPage() {
                     )}
                   </div>
 
-                  {/* Quick actions — visible on hover or always on mobile */}
+                  {/* Quick actions */}
                   <div className="flex items-center gap-1 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     {/* Restore */}
                     <Button
@@ -661,16 +1014,16 @@ export default function VersionsPage() {
                       {reverting === v.id ? "Restoring..." : "Restore"}
                     </Button>
 
-                    {/* Export / Diff */}
-                    {versions.length > 1 && i < versions.length - 1 && (
+                    {/* Diff with previous */}
+                    {versions.length > 1 && fullIndex < versions.length - 1 && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs"
                         disabled={diffLoading}
-                        onClick={() => handleDiff(versions[i + 1].id, v.id)}
+                        onClick={() => handleDiff(versions[fullIndex + 1].id, v.id)}
                       >
-                        {diffLoading && diffFrom === versions[i + 1]?.id && diffTo === v.id ? "..." : "Diff"}
+                        {diffLoading && diffFrom === versions[fullIndex + 1]?.id && diffTo === v.id ? "..." : "Diff"}
                       </Button>
                     )}
 
@@ -705,21 +1058,21 @@ export default function VersionsPage() {
               Close
             </Button>
           </div>
-          <Card className="backdrop-blur-sm bg-card/80 border-border/40 shadow-[0_0_15px_oklch(0.585_0.233_264/0.06)]">
+          <Card className="backdrop-blur-sm bg-card/80 border-border/40 shadow-[0_0_15px_var(--glow-primary)]">
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground mb-4">{diffResult.summary.description}</p>
 
               {/* Modified dialogues */}
               {diffResult.dialogues.modified.length > 0 && (
-                <div className="space-y-3 mb-6">
+                <div className="flex flex-col gap-3 mb-6">
                   <h3 className="text-sm font-semibold">Modified Dialogues</h3>
                   {diffResult.dialogues.modified.map((d, i) => (
-                    <div key={i} className="rounded-lg border p-3 space-y-1">
+                    <div key={i} className="rounded-lg border p-3 flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold uppercase tracking-wider">{d.character}</span>
                         <Badge variant="outline" className="text-[10px]">Scene {d.sceneNumber}</Badge>
                       </div>
-                      <div className="font-mono text-sm space-y-0.5">
+                      <div className="font-mono text-sm flex flex-col gap-0.5">
                         {d.diffs.map((seg, j) => (
                           <span
                             key={j}
@@ -742,7 +1095,7 @@ export default function VersionsPage() {
 
               {/* Added dialogues */}
               {diffResult.dialogues.added.length > 0 && (
-                <div className="space-y-2 mb-6">
+                <div className="flex flex-col gap-2 mb-6">
                   <h3 className="text-sm font-semibold text-primary">
                     + {diffResult.dialogues.added.length} Added Dialogues
                   </h3>
@@ -758,7 +1111,7 @@ export default function VersionsPage() {
 
               {/* Removed dialogues */}
               {diffResult.dialogues.removed.length > 0 && (
-                <div className="space-y-2 mb-6">
+                <div className="flex flex-col gap-2 mb-6">
                   <h3 className="text-sm font-semibold text-destructive">
                     - {diffResult.dialogues.removed.length} Removed Dialogues
                   </h3>
@@ -774,7 +1127,7 @@ export default function VersionsPage() {
 
               {/* Modified directions */}
               {diffResult.directions.modified.length > 0 && (
-                <div className="space-y-3 mb-6">
+                <div className="flex flex-col gap-3 mb-6">
                   <h3 className="text-sm font-semibold">Modified Directions</h3>
                   {diffResult.directions.modified.map((d, i) => (
                     <div key={i} className="rounded-lg border p-3">
@@ -805,7 +1158,7 @@ export default function VersionsPage() {
 
               {/* Scene changes */}
               {(diffResult.scenes.added.length > 0 || diffResult.scenes.removed.length > 0) && (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   {diffResult.scenes.added.map((s, i) => (
                     <div key={`sa-${i}`} className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                       <Badge className="text-[10px] bg-primary/20 text-primary">NEW SCENE</Badge>
@@ -833,14 +1186,16 @@ export default function VersionsPage() {
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Save Version</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            {/* UX AUDIT FIX: added accessible label for input */}
+          <div className="flex flex-col gap-3 pt-2">
             <Label htmlFor="version-label" className="sr-only">Version label</Label>
             <Input
               id="version-label"
               placeholder='Optional label (e.g. "Before AI rewrite")'
               value={saveLabel}
               onChange={(e) => setSaveLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !saving) handleSaveVersion();
+              }}
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
@@ -856,9 +1211,8 @@ export default function VersionsPage() {
       <Dialog open={branchDialogOpen} onOpenChange={setBranchDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Create Branch</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            {/* UX AUDIT FIX: added accessible labels for inputs */}
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="branch-name">Branch name</Label>
               <Input
                 id="branch-name"
@@ -867,7 +1221,7 @@ export default function VersionsPage() {
                 onChange={(e) => setBranchName(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="branch-desc">Description (optional)</Label>
               <Input
                 id="branch-desc"
@@ -894,15 +1248,25 @@ export default function VersionsPage() {
         onConfirm={() => { if (deleteTarget) return handleDeleteVersion(deleteTarget.id); }}
       />
 
+      {/* (#3) Restore confirm with stats comparison */}
       <ConfirmDialog
         open={revertTarget !== null}
         onOpenChange={(open) => { if (!open) setRevertTarget(null); }}
         title="Restore this version"
-        description={`Restore the screenplay to version v${revertTarget?.versionNumber}? Current changes since this version will remain in version history.`}
+        description={getRestoreDescription()}
         confirmLabel="Restore"
         variant="default"
         onConfirm={() => { if (revertTarget) return handleRevert(revertTarget.id); }}
       />
+
+      {/* (#8) Keyboard shortcuts hint */}
+      <div className="mt-12 text-center">
+        <p className="text-[11px] text-muted-foreground">
+          <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">S</kbd> Save version
+          {" "}&middot;{" "}
+          <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-mono">Esc</kbd> Close dialogs
+        </p>
+      </div>
     </div>
   );
 }

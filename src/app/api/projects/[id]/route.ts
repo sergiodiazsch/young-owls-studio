@@ -51,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
 
-    const { title, subtitle } = body;
+    const { title, subtitle, productionStyle } = body;
 
     // Validate fields if provided
     if (title !== undefined && (typeof title !== "string" || !title.trim())) {
@@ -61,9 +61,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Title too long (max 500 characters)" }, { status: 400 });
     }
 
-    const updates: { title?: string; subtitle?: string | null } = {};
+    const VALID_PRODUCTION_STYLES = ["childrens_animation", "general", "documentary", "commercial", "music_video"];
+    if (productionStyle !== undefined && productionStyle !== null && !VALID_PRODUCTION_STYLES.includes(productionStyle as string)) {
+      return NextResponse.json({ error: `Invalid productionStyle. Must be one of: ${VALID_PRODUCTION_STYLES.join(", ")}` }, { status: 400 });
+    }
+
+    const updates: { title?: string; subtitle?: string | null; productionStyle?: string | null } = {};
     if (title !== undefined) updates.title = (title as string).trim();
     if (subtitle !== undefined) updates.subtitle = subtitle ? (subtitle as string).trim() : null;
+    if (productionStyle !== undefined) updates.productionStyle = productionStyle as string | null;
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

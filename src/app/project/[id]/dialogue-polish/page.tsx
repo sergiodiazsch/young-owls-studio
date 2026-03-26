@@ -560,7 +560,7 @@ export default function DialoguePolishPage() {
                       title={preset.title}
                       className={`px-2.5 py-1 rounded-full text-xs border transition-all duration-300 ${
                         isActive
-                          ? "bg-primary/15 text-primary border-primary/40 font-medium shadow-[0_0_8px_oklch(0.585_0.233_264/0.15)]"
+                          ? "bg-primary/15 text-primary border-primary/40 font-medium shadow-[0_0_8px_var(--glow-primary)]"
                           : "bg-background hover:bg-accent hover:text-accent-foreground"
                       }`}
                     >
@@ -619,7 +619,7 @@ export default function DialoguePolishPage() {
           <Button
             onClick={handleStartPolish}
             disabled={isProcessing || !selectedCharacterId || !directive.trim()}
-            className="w-full shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300"
+            className="w-full shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300"
             size="lg"
           >
             {isProcessing ? (
@@ -853,7 +853,7 @@ export default function DialoguePolishPage() {
               <Card
                 key={job.id}
                 data-polish-card
-                className={`cursor-pointer backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300 ${activeJob?.id === job.id ? "ring-2 ring-primary/30 shadow-[0_0_12px_oklch(0.585_0.233_264/0.12)]" : ""}`}
+                className={`cursor-pointer backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 ${activeJob?.id === job.id ? "ring-2 ring-primary/30 shadow-[0_0_12px_var(--glow-primary)]" : ""}`}
                 onClick={() => handleLoadJob(job.id)}
               >
                 <CardContent className="p-4 flex items-center gap-4">
@@ -1070,7 +1070,7 @@ function ResultCard({
 
   return (
     <Card
-      className={`backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300 ${
+      className={`backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 ${
         result.status === "accepted"
           ? "border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/30 dark:bg-emerald-950/10"
           : result.status === "rejected"
@@ -1103,7 +1103,7 @@ function ResultCard({
           </div>
 
           {/* Rewritten */}
-          <div className="space-y-1 border-l-2 border-primary pl-3 shadow-[inset_0_0_10px_oklch(0.585_0.233_264/0.03)]">
+          <div className="space-y-1 border-l-2 border-primary pl-3 shadow-[inset_0_0_10px_var(--glow-primary)]">
             <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
               Rewritten
             </p>

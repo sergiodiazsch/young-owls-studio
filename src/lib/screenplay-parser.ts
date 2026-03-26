@@ -8,7 +8,8 @@ import type { ParsedScreenplay, ParsedScene } from "./types";
  */
 
 // Scene heading: INT. or EXT. (with variations)
-const HEADING_RE = /^(INT\.|EXT\.|INT\/EXT\.|EXT\/INT\.|I\/E\.)[\s]+(.+)/i;
+// Supports optional leading scene number + whitespace (e.g. "1   INT. LOCATION - DAY   1")
+const HEADING_RE = /^(?:\d+\s+)?(INT\.|EXT\.|INT\/EXT\.|EXT\/INT\.|I\/E\.)[\s]+(.+)/i;
 
 // Transitions — English and Spanish
 const TRANSITION_RE = /^(FADE IN:|FADE OUT[.:]|FADE TO:|CUT TO:|SMASH CUT TO:|SMASH CUT A:|MATCH CUT TO:|DISSOLVE TO:|WIPE TO:|IRIS IN:|IRIS OUT:|JUMP CUT TO:|CORTE A:|DISUELVE A:|FUNDE A:)(.*)$/i;
@@ -20,21 +21,24 @@ const CHARACTER_RE = /^([A-ZÀ-ÖØ-ÞŁŃ][A-ZÀ-ÖØ-ÞŁŃ\s.'\-#0-9]{0,40})(
 const INLINE_DIALOGUE_RE = /^([A-ZÀ-ÖØ-ÞŁŃ][A-ZÀ-ÖØ-ÞŁŃ\s.'\-]{0,40}):\s+(.+)$/;
 
 const PARENTHETICAL_RE = /^\(.+\)$/;
+// Markdown-style parentheticals: *shrill*, *whispers*, etc.
+const MD_PARENTHETICAL_RE = /^\*([^*]+)\*$/;
 
 // Special element markers
 const BROLL_RE = /^B-?ROLL:?\s*(.*)/i;
 const MUSIC_RE = /^MUSI[CK]A?:?\s*(.*)/i;
 const NOTE_RE = /^NOTA?:?\s*(.*)/i;
 
-// Section markers
-const SECTION_RE = /^(ACT\s+(ONE|TWO|THREE|FOUR|FIVE|\d+)|COLD\s+OPEN|TEASER|TAG|END\s+OF\s+(ACT|EPISODE))$/i;
+// Section markers — includes #WORD# format (e.g. #INTRO#)
+const SECTION_RE = /^(ACT\s+(ONE|TWO|THREE|FOUR|FIVE|\d+)|COLD\s+OPEN|TEASER|TAG|END\s+OF\s+(ACT|EPISODE)|#[A-Z][A-Z\s]*#)$/i;
 
 function extractHeadingParts(heading: string): { headingType: string; location: string; timeOfDay: string } {
   const match = heading.match(HEADING_RE);
   if (!match) return { headingType: "", location: "", timeOfDay: "" };
 
   const prefix = match[1].toUpperCase().replace("I/E.", "INT/EXT.");
-  const rest = match[2].trim();
+  // Strip trailing tabs + scene numbers (e.g. "\t\t\t\t1")
+  const rest = match[2].replace(/\t+\d*\s*$/, "").trim();
 
   const dashIndex = rest.lastIndexOf(" - ");
   if (dashIndex >= 0) {
@@ -48,14 +52,22 @@ function extractHeadingParts(heading: string): { headingType: string; location: 
   return { headingType: prefix.replace(".", ""), location: rest, timeOfDay: "" };
 }
 
+/** Strip Markdown formatting from a string: ### headings, *italic*, **bold** */
+function stripMarkdown(text: string): string {
+  return text.replace(/^#+\s*/, "").replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1").trim();
+}
+
 function inferTitle(rawText: string, filename?: string): { title: string; subtitle: string } {
   const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
 
   for (let i = 0; i < Math.min(20, lines.length); i++) {
     if (HEADING_RE.test(lines[i])) break;
+    if (SECTION_RE.test(lines[i])) continue;
     if (lines[i].length > 2 && lines[i].length < 80 && !lines[i].startsWith("FADE")) {
-      const subtitle = lines[i + 1] && !HEADING_RE.test(lines[i + 1]) ? lines[i + 1] : "";
-      return { title: lines[i], subtitle };
+      const title = stripMarkdown(lines[i]);
+      const nextLine = lines[i + 1];
+      const subtitle = nextLine && !HEADING_RE.test(nextLine) && !SECTION_RE.test(nextLine) ? stripMarkdown(nextLine) : "";
+      return { title, subtitle };
     }
   }
 
@@ -95,7 +107,7 @@ const ACTION_WORDS = new Set([
 ]);
 
 // Common screenplay direction phrases that look like character names
-const DIRECTION_PHRASES_RE = /^(ANGLE ON|CLOSE ON|WIDER ON|BACK TO|SAME TIME|MOMENTS? LATER|THE NEXT|TIME CUT|SERIES OF|END OF|TITLE CARD|SUPER:|ON SCREEN|WE SEE|WE HEAR|ON THE|IN THE|AT THE|PULL BACK|PUSH IN|PAN TO|ZOOM|SMASH TO)/i;
+const DIRECTION_PHRASES_RE = /^(ANGLE ON|CLOSE ON|WIDER ON|WIDE SHOT|CLOSE UP|MEDIUM SHOT|BACK TO|SAME TIME|MOMENTS? LATER|THE NEXT|TIME CUT|SERIES OF|END OF|TITLE CARD|SUPER:|ON SCREEN|WE SEE|WE HEAR|ON THE|IN THE|AT THE|PULL BACK|PUSH IN|PAN TO|ZOOM IN|ZOOM OUT|ZOOM|SMASH TO)/i;
 
 /** Check if a line looks like a character cue (ALL CAPS, not too long, not a known keyword) */
 function isCharacterCue(trimmed: string): string | null {
@@ -200,11 +212,13 @@ export function parseScreenplayLocal(rawText: string, filename?: string): Parsed
     flushAction();
     endDialogue();
     sceneNumber++;
+    // Clean heading: strip leading scene numbers and trailing tabs+numbers
+    const cleanHeading = heading.trim().replace(/^\d+\s+/, "").replace(/\t+\d*\s*$/, "").trim();
     const { headingType, location, timeOfDay } = extractHeadingParts(heading);
 
     currentScene = {
       sceneNumber,
-      heading: heading.trim(),
+      heading: cleanHeading,
       headingType,
       location,
       timeOfDay,
@@ -299,9 +313,17 @@ export function parseScreenplayLocal(rawText: string, filename?: string): Parsed
     }
 
     // Parenthetical — valid in character-seen or in-dialogue state
-    if ((dialogueState === "character-seen" || dialogueState === "in-dialogue") && PARENTHETICAL_RE.test(trimmed)) {
-      currentParenthetical = trimmed.slice(1, -1);
-      continue;
+    // Supports both (text) and *text* (markdown italic) formats
+    if (dialogueState === "character-seen" || dialogueState === "in-dialogue") {
+      if (PARENTHETICAL_RE.test(trimmed)) {
+        currentParenthetical = trimmed.slice(1, -1);
+        continue;
+      }
+      const mdParenMatch = trimmed.match(MD_PARENTHETICAL_RE);
+      if (mdParenMatch) {
+        currentParenthetical = mdParenMatch[1];
+        continue;
+      }
     }
 
     // Inline dialogue format: CHARACTER: dialogue text

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "./db/queries";
 import type { ParsedScreenplay, SceneModificationOption } from "./types";
+import { getProductionStylePrompt } from "./production-style";
 
 async function getAnthropicClient(): Promise<Anthropic> {
   const setting = await getSetting("anthropic_api_key");
@@ -211,8 +212,10 @@ const SCENE_MODIFICATIONS_TOOL: Anthropic.Tool = {
 
 export async function generateSceneModifications(
   sceneContext: string,
-  modificationPrompt: string
+  modificationPrompt: string,
+  productionStyle?: string | null,
 ): Promise<SceneModificationOption[]> {
+  const stylePrompt = getProductionStylePrompt(productionStyle);
   const client = await getAnthropicClient();
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
@@ -234,7 +237,7 @@ ${sceneContext}
 MODIFICATION REQUEST:
 ${modificationPrompt}
 
-Generate all 3 options with complete dialogue and direction elements. Preserve element types (dialogue, action, transition, etc.) and proper screenplay formatting.`,
+Generate all 3 options with complete dialogue and direction elements. Preserve element types (dialogue, action, transition, etc.) and proper screenplay formatting.${stylePrompt}`,
       },
     ],
   });

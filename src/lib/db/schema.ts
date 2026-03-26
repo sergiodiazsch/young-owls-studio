@@ -8,6 +8,7 @@ export const projects = pgTable("projects", {
   rawText: text("raw_text"),
   originalFilename: text("original_filename"),
   coverImage: text("cover_image"),
+  productionStyle: text("production_style"),
   createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
 });

@@ -7,6 +7,7 @@ export interface Project {
   rawText: string | null;
   originalFilename: string | null;
   coverImage: string | null;
+  productionStyle: string | null;
   createdAt: string;
   updatedAt: string;
   sceneCount?: number;

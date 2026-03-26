@@ -50,7 +50,7 @@ export async function deleteProject(id: number) {
   await db.delete(schema.projects).where(eq(schema.projects.id, id));
 }
 
-export async function updateProject(id: number, data: { title?: string; subtitle?: string | null }) {
+export async function updateProject(id: number, data: { title?: string; subtitle?: string | null; productionStyle?: string | null }) {
   await ensureSchema();
   const rows = await db
     .update(schema.projects)

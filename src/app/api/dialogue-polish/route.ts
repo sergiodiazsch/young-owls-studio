@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { getSetting } from "@/lib/db/queries";
+import { getSetting, getProject } from "@/lib/db/queries";
 import { db, ensureSchema } from "@/lib/db";
 import {
   dialoguePolishJobs,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { rateLimit } from "@/lib/rate-limit";
+import { getProductionStylePrompt } from "@/lib/production-style";
 
 const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
 
@@ -185,6 +186,10 @@ export async function POST(req: Request) {
       dialoguesByScene.set(d.sceneId, existing);
     }
 
+    // Load production style
+    const project = await getProject(projectId);
+    const stylePrompt = getProductionStylePrompt(project?.productionStyle);
+
     // Process each scene
     const setting = await getSetting("anthropic_api_key");
     const apiKey = setting?.value || process.env.ANTHROPIC_API_KEY;
@@ -249,7 +254,7 @@ export async function POST(req: Request) {
           max_tokens: 4096,
           tool_choice: { type: "tool", name: "dialogue_rewrites" },
           tools: [REWRITE_TOOL],
-          system: `You are rewriting dialogue for the character "${character.name}" across a screenplay.\nDirective from the writer: "${directive}"\nFor each of the character's dialogues in this scene, provide a rewritten version that follows the directive while maintaining scene context and essential meaning.\nIf a dialogue already fits the directive, return it unchanged with rationale "Already fits directive."`,
+          system: `You are rewriting dialogue for the character "${character.name}" across a screenplay.\nDirective from the writer: "${directive}"\nFor each of the character's dialogues in this scene, provide a rewritten version that follows the directive while maintaining scene context and essential meaning.\nIf a dialogue already fits the directive, return it unchanged with rationale "Already fits directive."${stylePrompt}`,
           messages: [
             {
               role: "user",

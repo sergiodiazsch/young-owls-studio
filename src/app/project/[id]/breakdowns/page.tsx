@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DurationAdjuster } from "@/components/duration-adjuster";
 import { BREAKDOWN_CATEGORIES } from "@/lib/breakdown-categories";
 import type { Scene, SceneBreakdown, BreakdownElement } from "@/lib/types";
 
@@ -794,117 +795,528 @@ export default function BreakdownsPage() {
       return found ? found.label : cat.replace(/_/g, " ");
     };
 
-    const tableRows = completedRows.map((r) => {
-      const bd = r.breakdown!;
-      const elements = bd.elements || [];
-      const grouped = elements.reduce<Record<string, string[]>>((acc, el) => {
-        if (!acc[el.category]) acc[el.category] = [];
-        acc[el.category].push(el.name + (el.quantity && el.quantity > 1 ? ` (x${el.quantity})` : ""));
-        return acc;
-      }, {});
+    const categoryColor = (cat: string) => {
+      const found = BREAKDOWN_CATEGORIES[cat];
+      return found ? found.color : "#6b7280";
+    };
 
-      const elementsList = Object.entries(grouped)
-        .map(([cat, names]) => `<strong>${categoryLabel(cat)}:</strong> ${names.join(", ")}`)
-        .join("<br/>");
+    const exportDate = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-      return `
-        <tr>
-          <td>${r.scene.sceneNumber}</td>
-          <td>${r.scene.heading || ""}</td>
-          <td>${r.scene.location || ""}</td>
-          <td>${bd.intOrExt || ""}</td>
-          <td>${bd.dayOrNight || ""}</td>
-          <td>${r.breakdown?.elements?.length ?? ""}</td>
-          <td>${bd.estimatedShootHours ? Math.round(bd.estimatedShootHours * 60) + "s" : ""}</td>
-          <td class="elements-cell">${elementsList}</td>
-        </tr>
-      `;
-    }).join("");
+    const exportTimestamp = new Date().toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const totalElements = summary
+      ? Object.values(summary.elementsByCategory).reduce((a: number, b: number) => a + b, 0)
+      : 0;
+
+    const formatDuration = (seconds: number) => {
+      if (seconds < 60) return `${seconds}s`;
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return s > 0 ? `${m}m ${s}s` : `${m}m`;
+    };
+
+    const totalDurationSec = summary ? Math.round(summary.totalPageCount * 60) : 0;
 
     const summaryHtml = summary ? `
-      <div class="summary-section">
-        <h2>Summary</h2>
-        <div class="summary-grid">
-          <div><strong>Total Scenes:</strong> ${summary.totalScenes}</div>
-          <div><strong>Breakdowns Complete:</strong> ${summary.completedBreakdowns}</div>
-          <div><strong>Total AI Assets:</strong> ${Object.values(summary.elementsByCategory).reduce((a: number, b: number) => a + b, 0)}</div>
-          <div><strong>Est. Duration:</strong> ${Math.round((summary.totalEstimatedShootHours || summary.totalPageCount) * 60)}s</div>
-          <div><strong>Locations:</strong> ${summary.uniqueLocations.length}</div>
-          <div><strong>Characters:</strong> ${summary.castList.length}</div>
+      <div class="summary-bar">
+        <div class="stat-card">
+          <div class="stat-value">${summary.completedBreakdowns}<span class="stat-total">/${summary.totalScenes}</span></div>
+          <div class="stat-label">Scenes Broken Down</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatDuration(totalDurationSec)}</div>
+          <div class="stat-label">Est. Runtime</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${summary.uniqueLocations.length}</div>
+          <div class="stat-label">Locations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${summary.castList.length}</div>
+          <div class="stat-label">Characters</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${totalElements}</div>
+          <div class="stat-label">Total Elements</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${summary.dayNightSplit.day}/${summary.dayNightSplit.night}</div>
+          <div class="stat-label">Day / Night</div>
         </div>
       </div>
     ` : "";
 
+    const sceneCards = completedRows.map((r) => {
+      const bd = r.breakdown!;
+      const elements = bd.elements || [];
+      const grouped = elements.reduce<Record<string, { name: string; quantity: number; description: string | null }[]>>((acc, el) => {
+        if (!acc[el.category]) acc[el.category] = [];
+        acc[el.category].push({ name: el.name, quantity: el.quantity, description: el.description });
+        return acc;
+      }, {});
+
+      const durationSec = bd.pageCount ? Math.round(bd.pageCount * 60) : 0;
+      const pageCount = bd.pageCount ? bd.pageCount.toFixed(1) : "—";
+
+      const intExtBadge = bd.intOrExt
+        ? `<span class="badge badge-${bd.intOrExt === "INT" ? "int" : "ext"}">${bd.intOrExt}</span>`
+        : "";
+
+      const dayNightBadge = bd.dayOrNight
+        ? `<span class="badge badge-${bd.dayOrNight === "DAY" ? "day" : "night"}">${bd.dayOrNight}</span>`
+        : "";
+
+      const categoryBlocks = Object.entries(grouped).map(([cat, items]) => {
+        const color = categoryColor(cat);
+        const itemsHtml = items.map((item) => {
+          const qty = item.quantity > 1 ? `<span class="element-qty">&times;${item.quantity}</span>` : "";
+          const desc = item.description ? `<span class="element-desc">${item.description}</span>` : "";
+          return `<div class="element-item"><span class="element-name">${item.name}</span>${qty}${desc}</div>`;
+        }).join("");
+
+        return `
+          <div class="category-block">
+            <div class="category-header" style="border-left: 3px solid ${color};">
+              <span class="category-dot" style="background: ${color};"></span>
+              <span class="category-label">${categoryLabel(cat)}</span>
+              <span class="category-count">${items.length}</span>
+            </div>
+            <div class="category-items">${itemsHtml}</div>
+          </div>
+        `;
+      }).join("");
+
+      const notesHtml = bd.notes ? `<div class="scene-notes"><strong>Notes:</strong> ${bd.notes}</div>` : "";
+
+      return `
+        <div class="scene-card">
+          <div class="scene-header">
+            <div class="scene-number">${r.scene.sceneNumber}</div>
+            <div class="scene-heading-group">
+              <div class="scene-heading">${r.scene.heading || `Scene ${r.scene.sceneNumber}`}</div>
+              <div class="scene-location">${r.scene.location || ""}</div>
+            </div>
+            <div class="scene-badges">
+              ${intExtBadge}
+              ${dayNightBadge}
+            </div>
+            <div class="scene-meta-right">
+              <div class="scene-duration">${formatDuration(durationSec)}</div>
+              <div class="scene-pages">${pageCount} pg</div>
+            </div>
+          </div>
+          ${elements.length > 0 ? `<div class="scene-body"><div class="categories-grid">${categoryBlocks}</div></div>` : '<div class="scene-body scene-empty">No elements</div>'}
+          ${notesHtml}
+        </div>
+      `;
+    }).join("");
+
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
+        <meta charset="utf-8" />
         <title>Production Breakdown Report</title>
         <style>
-          @page { size: landscape; margin: 0.5in; }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 10pt;
-            color: #000;
-            background: #fff;
+          @page {
+            size: A4 portrait;
+            margin: 0.6in 0.5in 0.8in 0.5in;
+          }
+
+          *, *::before, *::after {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
+            padding: 0;
           }
-          h1 { font-size: 18pt; margin-bottom: 4pt; }
-          h2 { font-size: 14pt; margin-top: 16pt; margin-bottom: 8pt; border-bottom: 1px solid #ccc; padding-bottom: 4pt; }
-          .summary-section { margin-bottom: 24pt; }
-          .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            font-size: 10pt;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
+
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
             font-size: 9pt;
+            line-height: 1.5;
+            color: #1a1a2e;
+            background: #fff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
-          th, td {
-            border: 1px solid #ccc;
-            padding: 4px 6px;
-            text-align: left;
-            vertical-align: top;
+
+          /* ---- HEADER ---- */
+          .report-header {
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #1a1a2e;
           }
-          th {
-            background: #f5f5f5;
-            font-weight: bold;
+
+          .report-header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+          }
+
+          .report-title {
+            font-size: 22pt;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            color: #1a1a2e;
+          }
+
+          .report-subtitle {
+            font-size: 9pt;
+            color: #6b7280;
+            margin-top: 4px;
+          }
+
+          .report-date {
+            text-align: right;
+            font-size: 8.5pt;
+            color: #6b7280;
+            white-space: nowrap;
+            padding-top: 6px;
+          }
+
+          .report-badge {
+            display: inline-block;
+            font-size: 7pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #fff;
+            background: #1a1a2e;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-top: 6px;
+          }
+
+          /* ---- SUMMARY BAR ---- */
+          .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+          }
+
+          .stat-card {
+            text-align: center;
+            padding: 10px 6px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f9fafb;
+          }
+
+          .stat-value {
+            font-size: 18pt;
+            font-weight: 800;
+            color: #1a1a2e;
+            line-height: 1.1;
+          }
+
+          .stat-total {
+            font-size: 11pt;
+            font-weight: 400;
+            color: #9ca3af;
+          }
+
+          .stat-label {
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6b7280;
+            margin-top: 4px;
+          }
+
+          /* ---- SECTION HEADING ---- */
+          .section-heading {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1a1a2e;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 14px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #d1d5db;
+          }
+
+          /* ---- SCENE CARD ---- */
+          .scene-card {
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .scene-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: #f3f4f6;
+            border-bottom: 1px solid #e5e7eb;
+          }
+
+          .scene-number {
+            font-size: 18pt;
+            font-weight: 800;
+            color: #1a1a2e;
+            min-width: 36px;
+            text-align: center;
+            line-height: 1;
+          }
+
+          .scene-heading-group {
+            flex: 1;
+            min-width: 0;
+          }
+
+          .scene-heading {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #1a1a2e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .scene-location {
+            font-size: 8pt;
+            color: #6b7280;
+            margin-top: 1px;
+          }
+
+          .scene-badges {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+          }
+
+          .badge {
+            display: inline-block;
+            font-size: 7pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 2px 7px;
+            border-radius: 3px;
             white-space: nowrap;
           }
-          tr:nth-child(even) { background: #fafafa; }
-          .elements-cell { font-size: 8pt; max-width: 400px; }
-          .meta { font-size: 9pt; color: #666; margin-bottom: 12pt; }
+
+          .badge-int {
+            background: #dbeafe;
+            color: #1e40af;
+          }
+
+          .badge-ext {
+            background: #fef3c7;
+            color: #92400e;
+          }
+
+          .badge-day {
+            background: #fefce8;
+            color: #854d0e;
+          }
+
+          .badge-night {
+            background: #1e1b4b;
+            color: #c7d2fe;
+          }
+
+          .scene-meta-right {
+            text-align: right;
+            flex-shrink: 0;
+            min-width: 48px;
+          }
+
+          .scene-duration {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.2;
+          }
+
+          .scene-pages {
+            font-size: 7.5pt;
+            color: #6b7280;
+          }
+
+          .scene-body {
+            padding: 12px 14px;
+          }
+
+          .scene-empty {
+            font-size: 8pt;
+            color: #9ca3af;
+            font-style: italic;
+            padding: 10px 14px;
+          }
+
+          .scene-notes {
+            font-size: 8pt;
+            color: #4b5563;
+            padding: 8px 14px;
+            background: #fffbeb;
+            border-top: 1px solid #fde68a;
+          }
+
+          /* ---- CATEGORIES GRID ---- */
+          .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+
+          .category-block {
+            break-inside: avoid;
+          }
+
+          .category-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: #f9fafb;
+            border-radius: 4px;
+            margin-bottom: 4px;
+          }
+
+          .category-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+          }
+
+          .category-label {
+            font-size: 8pt;
+            font-weight: 700;
+            color: #374151;
+            flex: 1;
+          }
+
+          .category-count {
+            font-size: 7pt;
+            font-weight: 600;
+            color: #9ca3af;
+            background: #e5e7eb;
+            padding: 1px 5px;
+            border-radius: 8px;
+          }
+
+          .category-items {
+            padding-left: 22px;
+            padding-bottom: 4px;
+          }
+
+          .element-item {
+            font-size: 8pt;
+            color: #374151;
+            padding: 1px 0;
+            line-height: 1.4;
+          }
+
+          .element-name {
+            font-weight: 500;
+          }
+
+          .element-qty {
+            font-size: 7pt;
+            color: #6b7280;
+            margin-left: 3px;
+          }
+
+          .element-desc {
+            display: block;
+            font-size: 7pt;
+            color: #9ca3af;
+            font-style: italic;
+            margin-left: 0;
+          }
+
+          /* ---- FOOTER ---- */
+          .report-footer {
+            margin-top: 32px;
+            padding-top: 12px;
+            border-top: 1px solid #d1d5db;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 7pt;
+            color: #9ca3af;
+          }
+
+          .footer-brand {
+            font-weight: 600;
+            color: #6b7280;
+          }
+
+          /* ---- PRINT ---- */
           @media print {
-            body { margin: 0; padding: 0; }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+
+            .scene-card {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+
+            .report-footer {
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              padding: 8px 0.5in;
+              background: #fff;
+              border-top: 1px solid #d1d5db;
+            }
+
+            .stat-card {
+              background: #f9fafb !important;
+            }
+
+            .badge-night {
+              background: #1e1b4b !important;
+              color: #c7d2fe !important;
+            }
           }
         </style>
       </head>
       <body>
-        <h1>Production Breakdown Report</h1>
-        <div class="meta">Exported from Young Owls Studio</div>
+        <div class="report-header">
+          <div class="report-header-top">
+            <div>
+              <div class="report-title">Production Breakdown</div>
+              <div class="report-subtitle">Scene-by-scene element breakdown &mdash; ${completedRows.length} scene${completedRows.length !== 1 ? "s" : ""} analyzed</div>
+              <div class="report-badge">Confidential &mdash; Production Use Only</div>
+            </div>
+            <div class="report-date">${exportDate}</div>
+          </div>
+        </div>
+
         ${summaryHtml}
-        <h2>Scene Breakdowns</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Scene Heading</th>
-              <th>Location</th>
-              <th>Int/Ext</th>
-              <th>Time</th>
-              <th>Assets</th>
-              <th>Duration</th>
-              <th>Elements</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-          </tbody>
-        </table>
+
+        <div class="section-heading">Scene Breakdowns</div>
+
+        ${sceneCards}
+
+        <div class="report-footer">
+          <div class="footer-brand">Generated by Young Owls Studio</div>
+          <div>${exportTimestamp}</div>
+        </div>
       </body>
       </html>
     `);
@@ -1114,7 +1526,7 @@ export default function BreakdownsPage() {
               Retry Failed ({rows.filter((r) => r.breakdown?.status === "failed").length})
             </Button>
           )}
-          <Button onClick={() => setConfirmGenerateAll(true)} disabled={generatingAll} title="AI analyzes every scene and lists required production elements: cast, props, wardrobe, vehicles, effects." className="shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300">
+          <Button onClick={() => setConfirmGenerateAll(true)} disabled={generatingAll} title="AI analyzes every scene and lists required production elements: cast, props, wardrobe, vehicles, effects." className="shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300">
             {generatingAll ? (
               <>
                 <svg
@@ -1153,7 +1565,7 @@ export default function BreakdownsPage() {
 
       {/* Generate-all progress */}
       {generatingAll && (
-        <Card className="mb-6 border-primary/20 bg-primary/[0.02] backdrop-blur-sm shadow-[0_0_15px_oklch(0.585_0.233_264/0.08)]">
+        <Card className="mb-6 border-primary/20 bg-primary/[0.02] backdrop-blur-sm shadow-[0_0_15px_var(--glow-primary)]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium">
@@ -1188,12 +1600,12 @@ export default function BreakdownsPage() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300">
+          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
             <CardContent className="p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Scenes
               </p>
-              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px oklch(0.585 0.233 264 / 0.25)' }}>
+              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px var(--glow-primary)' }}>
                 {summary.completedBreakdowns}
                 <span className="text-sm font-normal text-muted-foreground">
                   /{summary.totalScenes}
@@ -1203,38 +1615,39 @@ export default function BreakdownsPage() {
             </CardContent>
           </Card>
 
-          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300">
+          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
             <CardContent className="p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 AI Assets
               </p>
-              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px oklch(0.585 0.233 264 / 0.25)' }}>
+              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px var(--glow-primary)' }}>
                 {Object.values(summary.elementsByCategory).reduce((a, b) => a + b, 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">images, audio & video clips</p>
             </CardContent>
           </Card>
 
-          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300">
+          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
             <CardContent className="p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Est. Duration
+                Est. Runtime
               </p>
-              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px oklch(0.585 0.233 264 / 0.25)' }}>
-                {summary.totalEstimatedShootHours > 0
-                  ? `${Math.round(summary.totalEstimatedShootHours * 60)}s`
-                  : `${Math.round(summary.totalPageCount * 60)}s`}
+              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px var(--glow-primary)' }}>
+                {`${Math.round(summary.totalPageCount * 60)}s`}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">estimated runtime</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-muted-foreground">{summary.totalPageCount > 0 ? `~${Math.round(summary.totalPageCount)} min` : "estimated runtime"}</p>
+                <DurationAdjuster projectId={projectId} currentDurationMinutes={summary.totalPageCount} onApplied={() => window.location.reload()} />
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300">
+          <Card className="backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
             <CardContent className="p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Locations & Cast
               </p>
-              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px oklch(0.585 0.233 264 / 0.25)' }}>
+              <p className="text-2xl font-bold mt-1" style={{ textShadow: '0 0 20px var(--glow-primary)' }}>
                 {summary.uniqueLocations.length}
                 <span className="text-sm font-normal text-muted-foreground mx-1">/</span>
                 {summary.castList.length}
@@ -1301,9 +1714,7 @@ export default function BreakdownsPage() {
                     {breakdown ? (elements.length || "-") : "-"}
                   </div>
                   <div className="text-xs font-mono">
-                    {breakdown?.estimatedShootHours != null
-                      ? `${Math.round(breakdown.estimatedShootHours * 60)}s`
-                      : breakdown?.pageCount != null
+                    {breakdown?.pageCount != null
                       ? `${Math.round(breakdown.pageCount * 60)}s`
                       : "-"}
                   </div>
@@ -1529,7 +1940,7 @@ export default function BreakdownsPage() {
                                   ? "border-primary text-foreground"
                                   : "border-transparent text-muted-foreground hover:text-foreground"
                               }`}
-                              style={breakdownTab === tab.key ? { textShadow: '0 0 10px oklch(0.585 0.233 264 / 0.3)' } : undefined}
+                              style={breakdownTab === tab.key ? { textShadow: '0 0 10px var(--glow-primary)' } : undefined}
                             >
                               {tab.label} <span className="text-muted-foreground/60 ml-1">{tab.count}</span>
                             </button>
@@ -1545,7 +1956,7 @@ export default function BreakdownsPage() {
                               aiBreakdown.shots.map((shot) => {
                                 const isShotExpanded = expandedShots.has(shot.shotNumber);
                                 return (
-                                  <div key={shot.shotNumber} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm px-3 py-2 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.06)] transition-all duration-300">
+                                  <div key={shot.shotNumber} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm px-3 py-2 hover:shadow-md transition-all duration-300">
                                     <div
                                       className="flex items-center gap-3 cursor-pointer"
                                       onClick={() => {
@@ -1595,7 +2006,7 @@ export default function BreakdownsPage() {
                                 const catInfo = BREAKDOWN_CATEGORIES[img.imageType];
                                 const isPromptExpanded = expandedImagePrompts.has(img.imageId);
                                 return (
-                                  <div key={img.imageId} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm p-3 space-y-2 hover:-translate-y-0.5 hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.08)] transition-all duration-300">
+                                  <div key={img.imageId} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm p-3 space-y-2 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
                                     <div className="flex items-center gap-2">
                                       <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: catInfo?.color || "#888" }} />
                                       <span className="text-xs font-semibold truncate">{img.subject}</span>
@@ -1666,7 +2077,7 @@ export default function BreakdownsPage() {
                               <p className="text-xs text-muted-foreground py-4 text-center">No dialogue lines in this breakdown.</p>
                             ) : (
                               aiBreakdown.dialogueLines.map((dl) => (
-                                <div key={dl.index} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm px-3 py-2 flex items-start gap-3 hover:shadow-[0_0_8px_oklch(0.585_0.233_264/0.06)] transition-all duration-300">
+                                <div key={dl.index} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm px-3 py-2 flex items-start gap-3 hover:shadow-md transition-all duration-300">
                                   <div className="shrink-0 mt-0.5">
                                     <span className="text-xs font-bold text-primary">{dl.character}</span>
                                     <p className="text-[10px] text-muted-foreground">{dl.emotion}{dl.parenthetical ? ` (${dl.parenthetical})` : ""}</p>
@@ -1701,7 +2112,7 @@ export default function BreakdownsPage() {
                               <p className="text-xs text-muted-foreground py-4 text-center">No audio design items in this breakdown.</p>
                             ) : (
                               aiBreakdown.audioDesign.map((ad, i) => (
-                                <div key={i} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm px-3 py-2 flex items-start gap-3 hover:shadow-[0_0_8px_oklch(0.715_0.165_195/0.06)] transition-all duration-300">
+                                <div key={i} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm px-3 py-2 flex items-start gap-3 hover:shadow-sm transition-all duration-300">
                                   <Badge variant="outline" className="text-[9px] h-4 capitalize shrink-0 mt-0.5">{ad.audioType}</Badge>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs">{ad.description}</p>
@@ -1775,7 +2186,7 @@ export default function BreakdownsPage() {
                             ([category, catElements]) => {
                               const catInfo = BREAKDOWN_CATEGORIES[category];
                               return (
-                                <div key={category} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm p-3 hover:-translate-y-0.5 hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.08)] transition-all duration-300" style={{ borderLeftWidth: 3, borderLeftColor: catInfo?.color || '#888' }}>
+                                <div key={category} className="rounded-lg border border-border/40 bg-card/80 backdrop-blur-sm p-3 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300" style={{ borderLeftWidth: 3, borderLeftColor: catInfo?.color || '#888' }}>
                                   <div className="flex items-center gap-2 mb-2">
                                     <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: catInfo?.color || "#888" }} />
                                     <span className="text-xs font-semibold">{catInfo?.label || category}</span>
@@ -1792,7 +2203,7 @@ export default function BreakdownsPage() {
                                         </div>
                                         <button
                                           onClick={() => handleDeleteElement(el.id, row.scene.id)}
-                                          className="shrink-0 p-1.5 rounded text-muted-foreground/40 hover:text-destructive opacity-0 group-hover/el:opacity-100 transition-opacity"
+                                          className="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover/el:opacity-100 transition-opacity"
                                           title="Remove element"
                                           aria-label={`Remove ${el.name}`}
                                         >

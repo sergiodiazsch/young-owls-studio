@@ -245,7 +245,6 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <ThemeCustomizer />
           </div>
         </div>
       </header>
@@ -432,7 +431,7 @@ export default function SettingsPage() {
                           placeholder={settings[key]?.hasValue ? "Enter new key to replace..." : "Paste your API key here..."}
                           value={values[key] ?? ""}
                           onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
-                          className="pr-9 focus:shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)] transition-shadow duration-300"
+                          className="pr-9 focus:shadow-[0_0_10px_var(--glow-primary)] transition-shadow duration-300"
                         />
                         <button
                           type="button"
@@ -468,7 +467,7 @@ export default function SettingsPage() {
                     {verifyResults[key] && (
                       <div className={`text-xs px-2.5 py-1.5 rounded-md backdrop-blur-sm border ${
                         verifyResults[key].status === "ok"
-                          ? "bg-primary/10 text-primary border-primary/20 shadow-[0_0_8px_oklch(0.585_0.233_264/0.1)]"
+                          ? "bg-primary/10 text-primary border-primary/20 shadow-[0_0_8px_var(--glow-primary)]"
                           : "bg-destructive/10 text-destructive border-destructive/20"
                       }`}>
                         {verifyResults[key].message}
@@ -485,7 +484,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
-                className="flex-1 h-11 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300"
+                className="flex-1 h-11 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300"
               >
                 {saving ? (
                   <>
@@ -524,10 +523,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground">AI-powered screenplay tools</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Theme</span>
-              <ThemeCustomizer />
-            </div>
+            <span className="text-xs text-muted-foreground font-mono">v1.0</span>
           </CardContent>
         </Card>
       </main>

@@ -253,8 +253,8 @@ export default function UploadPage() {
           aria-label="Upload screenplay file. Drop a .docx file here or click to browse."
           className={`relative rounded-2xl border-2 border-dashed p-12 md:p-16 text-center transition-all duration-300 cursor-pointer backdrop-blur-sm ${
             dragOver
-              ? "border-primary bg-primary/5 shadow-[0_0_30px_oklch(0.585_0.233_264/0.2)] scale-[1.01]"
-              : "border-primary/30 hover:border-primary/50 hover:bg-muted/30 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+              ? "border-primary bg-primary/5 shadow-[0_0_30px_var(--glow-primary)] scale-[1.01]"
+              : "border-primary/30 hover:border-primary/50 hover:bg-muted/30 hover:shadow-md"
           }`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -272,7 +272,7 @@ export default function UploadPage() {
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="mx-auto text-muted-foreground/60 mb-4 drop-shadow-[0_0_8px_oklch(0.585_0.233_264/0.3)]"
+            className="mx-auto text-muted-foreground/60 mb-4 drop-shadow-[0_0_8px_var(--glow-primary)]"
           >
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
             <path d="M14 2v6h6" />
@@ -300,19 +300,19 @@ export default function UploadPage() {
         </div>
       ) : (
         /* ── Loaded file: compact confirmation card ── */
-        <Card className="border-green-200 dark:border-green-900/50 shadow-[0_0_20px_oklch(0.715_0.165_195/0.15)] backdrop-blur-sm">
+        <Card className="border-green-200 dark:border-green-900/50 shadow-sm backdrop-blur-sm">
           <CardContent className="p-6 space-y-5">
             {/* File info row */}
             <div className="flex items-center gap-4">
               {/* Green checkmark or spinner */}
               {step === "done" ? (
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center shadow-[0_0_12px_oklch(0.715_0.165_195/0.3)]">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center shadow-sm">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
               ) : (
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center shadow-[0_0_12px_oklch(0.585_0.233_264/0.2)]">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center shadow-[0_0_12px_var(--glow-primary)]">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary animate-pulse">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                     <path d="M14 2v6h6" />
@@ -339,18 +339,18 @@ export default function UploadPage() {
 
             {/* Progress bar (visible during upload/parse) */}
             {(step === "uploading" || step === "parsing") && (
-              <Progress value={stepProgress} className="h-1.5 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70 [&>div]:shadow-[0_0_8px_oklch(0.585_0.233_264/0.4)]" />
+              <Progress value={stepProgress} className="h-1.5 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70 [&>div]:shadow-[0_0_8px_var(--glow-primary)]" />
             )}
 
             {/* Parse result stats */}
             {parseResult && step === "done" && (
               <div className="flex gap-3">
                 <div className="text-center flex-1 rounded-lg bg-muted/60 backdrop-blur-sm border border-border/40 p-3">
-                  <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_oklch(0.585_0.233_264/0.3)]">{parseResult.sceneCount}</p>
+                  <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_var(--glow-primary)]">{parseResult.sceneCount}</p>
                   <p className="text-xs text-muted-foreground">Scenes</p>
                 </div>
                 <div className="text-center flex-1 rounded-lg bg-muted/60 backdrop-blur-sm border border-border/40 p-3">
-                  <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_oklch(0.585_0.233_264/0.3)]">{parseResult.characterCount}</p>
+                  <p className="text-2xl font-bold text-primary drop-shadow-[0_0_6px_var(--glow-primary)]">{parseResult.characterCount}</p>
                   <p className="text-xs text-muted-foreground">Characters</p>
                 </div>
               </div>
@@ -370,7 +370,7 @@ export default function UploadPage() {
                     const isActive = breakdownProgress.step === s;
                     const isDone = ["locations", "characters", "breakdowns", "prompts"].indexOf(s) < ["locations", "characters", "breakdowns", "prompts"].indexOf(breakdownProgress.step);
                     return (
-                      <div key={s} className={`flex items-center gap-2 text-xs transition-colors ${isActive ? "text-primary font-medium" : isDone ? "text-muted-foreground" : "text-muted-foreground/40"}`}>
+                      <div key={s} className={`flex items-center gap-2 text-xs transition-colors ${isActive ? "text-primary font-medium" : isDone ? "text-muted-foreground" : "text-muted-foreground"}`}>
                         {isDone ? (
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M3.5 8.5L6.5 11.5L12.5 4.5" />
@@ -484,7 +484,7 @@ export default function UploadPage() {
             onClick={() => { if (!mediaUploading) mediaInputRef.current?.click(); }}
             onKeyDown={(e) => { if (!mediaUploading && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); mediaInputRef.current?.click(); } }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto text-muted-foreground/50 mb-1.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto text-muted-foreground mb-1.5">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <path d="M21 15l-5-5L5 21" />

@@ -13,6 +13,7 @@ interface SceneFileLink {
   fileType: string;
   mimeType: string;
   filename: string;
+  storagePath: string;
   reviewStatus: "approved" | "rejected" | "pending";
 }
 
@@ -70,20 +71,26 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
   const [zoom, setZoom] = useState(1);
   const [viewMode, setViewMode] = useState<"chart" | "storyboard">("chart");
   const [sceneFiles, setSceneFiles] = useState<Record<number, SceneFileLink[]>>({});
-  const [loadingFiles, setLoadingFiles] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
   const storyboardRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const [scenesRes, charsRes] = await Promise.all([
+      const [scenesRes, charsRes, reviewRes] = await Promise.all([
         fetch(`/api/scenes?projectId=${projectId}&include=dialogues,directions`),
         fetch(`/api/characters?projectId=${projectId}`),
+        fetch(`/api/scenes/review?projectId=${projectId}`),
       ]);
 
       const scenesData: Scene[] = await scenesRes.json();
       const charsData = await charsRes.json();
       setCharacters(Array.isArray(charsData) ? charsData : charsData.characters || []);
+
+      // Build file map from review data
+      const reviewData: SceneReviewData[] = await reviewRes.json();
+      const fileMap: Record<number, SceneFileLink[]> = {};
+      reviewData.forEach((d) => { fileMap[d.sceneId] = d.files; });
+      setSceneFiles(fileMap);
 
       const enriched: SceneWithAssets[] = scenesData.map((s) => {
         const dialogueChars = new Set<string>();
@@ -91,7 +98,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
 
         return {
           ...s,
-          assetCount: s.media?.length || 0,
+          assetCount: (fileMap[s.id] || []).length,
           dialogueCount: s.dialogues?.length || 0,
           estimatedDuration: estimateSceneDuration(s),
           characters: Array.from(dialogueChars),
@@ -108,25 +115,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const fetchSceneFiles = useCallback(async () => {
-    setLoadingFiles(true);
-    try {
-      const res = await fetch(`/api/scenes/review?projectId=${projectId}`);
-      if (!res.ok) throw new Error("Failed to fetch scene files");
-      const data: SceneReviewData[] = await res.json();
-      const map: Record<number, SceneFileLink[]> = {};
-      data.forEach((d) => { map[d.sceneId] = d.files; });
-      setSceneFiles(map);
-    } catch {
-      toast.error("Failed to load scene file links");
-    } finally {
-      setLoadingFiles(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    if (viewMode === "storyboard") fetchSceneFiles();
-  }, [viewMode, fetchSceneFiles]);
+  // Scene files are fetched in fetchData on initial load
 
   const updateReviewStatus = useCallback(async (linkId: number, newStatus: "approved" | "rejected" | "pending") => {
     try {
@@ -199,7 +188,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
           {/* View mode toggle */}
           <div className="flex items-center rounded-lg border border-border/30 bg-card/60 backdrop-blur-sm p-0.5">
             <button
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "chart" ? "bg-primary text-primary-foreground shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)]" : "text-muted-foreground hover:text-foreground"}`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "chart" ? "bg-primary text-primary-foreground shadow-[0_0_12px_var(--glow-primary)]" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setViewMode("chart")}
             >
               <span className="flex items-center gap-1.5">
@@ -208,7 +197,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
               </span>
             </button>
             <button
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "storyboard" ? "bg-primary text-primary-foreground shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)]" : "text-muted-foreground hover:text-foreground"}`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "storyboard" ? "bg-primary text-primary-foreground shadow-[0_0_12px_var(--glow-primary)]" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setViewMode("storyboard")}
             >
               <span className="flex items-center gap-1.5">
@@ -295,7 +284,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                           scene.timeOfDay === "DAWN" || scene.timeOfDay === "DUSK" ? "bg-orange-500/60" :
                           "bg-amber-500/40"
                         }`} />
-                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-mono text-foreground/70 group-hover:text-foreground transition-colors">
+                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-mono text-foreground group-hover:text-foreground transition-colors">
                           {scene.sceneNumber}
                         </span>
                         {/* Asset dot indicator */}
@@ -311,7 +300,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                   {scenes.map((scene) => (
                     <div
                       key={scene.id}
-                      className="text-[8px] text-muted-foreground/50 text-center font-mono"
+                      className="text-[8px] text-muted-foreground text-center font-mono"
                       style={{ width: `${Math.max(32, 48 * zoom)}px` }}
                     >
                       {formatDuration(scene.estimatedDuration)}
@@ -455,7 +444,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                           {scene.assetCount > 0 ? (
                             <span className="text-primary">{scene.assetCount}</span>
                           ) : (
-                            <span className="text-muted-foreground/40">0</span>
+                            <span className="text-muted-foreground">0</span>
                           )}
                         </td>
                         <td className="p-3 text-right font-mono text-xs">{formatDuration(scene.estimatedDuration)}</td>
@@ -479,7 +468,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
 
       {/* ===== STORYBOARD VIEW ===== */}
       {viewMode === "storyboard" && (
-        <Card className="bg-card/60 backdrop-blur-sm border-border/30 shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)]">
+        <Card className="bg-card/60 backdrop-blur-sm border-border/30 shadow-[0_0_12px_var(--glow-primary)]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Storyboard</h3>
@@ -490,7 +479,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            {loadingFiles ? (
+            {loading ? (
               <div className="flex gap-3 overflow-hidden">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="min-w-[180px] space-y-2">
@@ -538,7 +527,7 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                             /* Empty scene placeholder */
                             <div className="flex flex-col items-center justify-center py-6 text-center">
                               <div className="w-10 h-10 rounded-lg bg-muted/30 flex items-center justify-center mb-2">
-                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground/50">
+                                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
                                   <rect x="2" y="2" width="12" height="12" rx="2" />
                                   <path d="M6 6l4 4M10 6l-4 4" />
                                 </svg>
@@ -570,15 +559,15 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                                         href={`/api/drive/files/${file.fileId}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`block rounded-md border-2 overflow-hidden transition-all hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] ${reviewBorderClass(file.reviewStatus)}`}
+                                        className={`block rounded-md border-2 overflow-hidden transition-all hover:shadow-md ${reviewBorderClass(file.reviewStatus)}`}
                                       >
-                                        <div className="aspect-video bg-muted/40 flex items-center justify-center">
-                                          <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" className="text-muted-foreground/30">
-                                            <rect x="2" y="2" width="12" height="12" rx="2" />
-                                            <circle cx="6" cy="6" r="1.5" />
-                                            <path d="M2 11l3-3 2 2 3-3 4 4v1H2z" />
-                                          </svg>
-                                        </div>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={`/api/drive/files/${file.fileId}`}
+                                          alt={file.filename}
+                                          className="aspect-video w-full object-cover bg-muted/40"
+                                          loading="lazy"
+                                        />
                                       </a>
                                       <p className="text-[8px] text-muted-foreground/60 truncate mt-0.5 px-0.5" title={file.filename}>{file.filename}</p>
                                       {/* Review status badge */}
@@ -620,10 +609,10 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                                         href={`/api/drive/files/${file.fileId}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`block rounded-md border-2 overflow-hidden transition-all hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] ${reviewBorderClass(file.reviewStatus)}`}
+                                        className={`block rounded-md border-2 overflow-hidden transition-all hover:shadow-md ${reviewBorderClass(file.reviewStatus)}`}
                                       >
                                         <div className="aspect-video bg-muted/40 flex items-center justify-center">
-                                          <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" className="text-muted-foreground/30">
+                                          <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" className="text-muted-foreground">
                                             <path d="M6 4l7 4-7 4V4z" fill="currentColor" />
                                           </svg>
                                         </div>
@@ -667,11 +656,11 @@ export default function TimelineReviewPage({ params }: { params: Promise<{ id: s
                                         href={`/api/drive/files/${file.fileId}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`block rounded-md border-2 overflow-hidden transition-all hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] ${reviewBorderClass(file.reviewStatus)}`}
+                                        className={`block rounded-md border-2 overflow-hidden transition-all hover:shadow-md ${reviewBorderClass(file.reviewStatus)}`}
                                       >
                                         <div className="h-10 bg-muted/40 flex items-center justify-center gap-0.5 px-2">
                                           {/* Waveform visualization */}
-                                          <svg width="64" height="20" viewBox="0 0 64 20" fill="none" className="text-muted-foreground/40">
+                                          <svg width="64" height="20" viewBox="0 0 64 20" fill="none" className="text-muted-foreground">
                                             <rect x="2" y="6" width="2" height="8" rx="1" fill="currentColor" />
                                             <rect x="7" y="3" width="2" height="14" rx="1" fill="currentColor" />
                                             <rect x="12" y="7" width="2" height="6" rx="1" fill="currentColor" />

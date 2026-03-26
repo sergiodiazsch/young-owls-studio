@@ -5,12 +5,6 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from "react";
-import dynamic from "next/dynamic";
-
-const ThemeCustomizer = dynamic(
-  () => import("@/components/theme-customizer").then((m) => ({ default: m.ThemeCustomizer })),
-  { ssr: false }
-);
 import { SmartTooltip } from "@/components/onboarding/smart-tooltip";
 import { NavIcon } from "@/components/nav-icons";
 import { useSidebarConfig } from "@/hooks/use-sidebar-config";
@@ -39,7 +33,7 @@ function NavLinks({ projectId, pathname, groupedItems, onNavigate, collapsed }: 
         if (visibleItems.length === 0) return null;
         return (
           <div key={group.id} className={groupIdx > 0 ? "nav-group-separator" : ""} {...(isGenGroup ? { "data-tour": "ai-tools" } : {})}>
-            <p className="sb-label text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/40 px-3 mb-1.5 whitespace-nowrap overflow-hidden">
+            <p className="sb-label text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground px-3 mb-1.5 whitespace-nowrap overflow-hidden">
               {group.label}
             </p>
             <div className="flex flex-col gap-0.5">
@@ -54,14 +48,14 @@ function NavLinks({ projectId, pathname, groupedItems, onNavigate, collapsed }: 
                     aria-current={isActive ? "page" : undefined}
                     className={`nav-link-icon-shift flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ease-out relative overflow-hidden whitespace-nowrap focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
                       isActive
-                        ? "bg-primary/10 text-primary shadow-[0_0_12px_oklch(0.585_0.233_264/0.15)] ring-1 ring-primary/20"
+                        ? "bg-primary/10 text-primary shadow-[0_0_12px_var(--glow-primary)] ring-1 ring-primary/20"
                         : "text-muted-foreground hover:bg-primary/8 hover:text-foreground hover:translate-x-0.5"
                     }`}
                   >
                     <NavIcon name={link.icon} />
                     <span className="sb-label">{link.label}</span>
                     {isActive && (
-                      <span className="sb-label absolute right-2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_oklch(0.585_0.233_264/0.5)] film-glow" />
+                      <span className="sb-label absolute right-2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_var(--glow-primary)] film-glow" />
                     )}
                   </Link>
                 );
@@ -306,23 +300,19 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
           <div className="shrink-0 mx-3 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
 
-          {/* Footer — minimal: Settings + Theme only */}
-          <div className="shrink-0 p-3 flex flex-col gap-0.5 overflow-hidden whitespace-nowrap">
+          {/* Footer — Settings icon only */}
+          <div className="shrink-0 p-3 flex items-center justify-center overflow-hidden">
             <Link
               href="/settings"
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground hover:bg-primary/8 hover:text-foreground transition-all duration-200 overflow-hidden whitespace-nowrap"
-              title={collapsed ? "Settings" : undefined}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-muted-foreground hover:bg-muted/40 transition-all duration-200"
+              title="Settings"
+              aria-label="Settings"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0 opacity-70">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0">
                 <circle cx="8" cy="8" r="2.5" />
                 <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.93 2.93l1.41 1.41M11.66 11.66l1.41 1.41M2.93 13.07l1.41-1.41M11.66 4.34l1.41-1.41" />
               </svg>
-              <span className="sb-label">Settings</span>
             </Link>
-            <div className="flex items-center gap-2.5 px-3 py-1 overflow-hidden whitespace-nowrap" data-tour="theme-toggle">
-              <ThemeCustomizer />
-              <span className="sb-label text-[10px] text-muted-foreground/40 font-mono tracking-wider">Theme</span>
-            </div>
           </div>
         </div>
 
@@ -332,7 +322,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
         {/* ── Collapse toggle button ── */}
         <button
           onClick={handleToggle}
-          className="absolute -right-3 top-7 z-50 w-6 h-6 rounded-full border border-border/40 bg-card/90 backdrop-blur-sm shadow-[0_0_8px_oklch(0.585_0.233_264/0.1)] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:shadow-[0_0_12px_oklch(0.585_0.233_264/0.2)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+          className="absolute -right-3 top-7 z-50 w-6 h-6 rounded-full border border-border/40 bg-card/90 backdrop-blur-sm shadow-[0_0_8px_var(--glow-primary)] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

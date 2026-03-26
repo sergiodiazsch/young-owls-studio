@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSceneWithElements } from "@/lib/db/queries";
+import { getSceneWithElements, getProject } from "@/lib/db/queries";
 import { generateSceneModifications } from "@/lib/claude";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +49,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   try {
-    const options = await generateSceneModifications(context, prompt);
+    const project = await getProject(scene.projectId);
+    const options = await generateSceneModifications(context, prompt, project?.productionStyle);
     return NextResponse.json({ options });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to generate modifications";

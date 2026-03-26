@@ -100,6 +100,9 @@
   --glow-primary: oklch(0.585 0.233 264 / 25%);
   /* Cyan glow for accents */
   --glow-accent: oklch(0.715 0.165 195 / 20%);
+  /* Skeleton shimmer colors */
+  --skeleton-from: oklch(0.17 0.012 280);
+  --skeleton-to: oklch(0.22 0.02 264);
 }
 
 /* ── Light Mode (optional alternate) ── */
@@ -137,6 +140,17 @@
   --sidebar-ring: oklch(0.50 0.233 264 / 30%);
   --glow-primary: oklch(0.50 0.233 264 / 18%);
   --glow-accent: oklch(0.60 0.165 195 / 15%);
+  /* Skeleton shimmer colors — light mode */
+  --skeleton-from: oklch(0.92 0.005 280);
+  --skeleton-to: oklch(0.88 0.01 264);
+}
+
+/* ── Light mode card shadows for visual hierarchy ── */
+.light .rounded-xl {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+.light .rounded-xl:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 @layer base {
@@ -1258,10 +1272,10 @@ body {
 
 /* Glow effects */
 .glow-primary {
-  box-shadow: 0 0 20px oklch(0.585 0.233 264 / 0.15);
+  box-shadow: 0 0 20px var(--glow-primary);
 }
 .glow-primary-intense {
-  box-shadow: 0 0 30px oklch(0.585 0.233 264 / 0.25);
+  box-shadow: 0 0 30px var(--glow-primary);
 }
 .glow-accent {
   box-shadow: 0 0 20px oklch(0.715 0.165 195 / 0.15);
@@ -1275,9 +1289,9 @@ body {
 .cinema-shimmer {
   background: linear-gradient(
     90deg,
-    oklch(0.17 0.012 280) 25%,
-    oklch(0.22 0.02 264) 50%,
-    oklch(0.17 0.012 280) 75%
+    var(--skeleton-from) 25%,
+    var(--skeleton-to) 50%,
+    var(--skeleton-from) 75%
   );
   background-size: 200% 100%;
   animation: cinema-shimmer 1.8s ease-in-out infinite;
@@ -1285,8 +1299,8 @@ body {
 
 /* Cinema gate glow for CTAs */
 @keyframes cinema-gate-pulse {
-  0%, 100% { box-shadow: 0 0 15px oklch(0.585 0.233 264 / 0.2); }
-  50% { box-shadow: 0 0 25px oklch(0.585 0.233 264 / 0.4); }
+  0%, 100% { box-shadow: 0 0 15px var(--glow-primary); }
+  50% { box-shadow: 0 0 25px var(--glow-primary); }
 }
 .cinema-gate-glow {
   animation: cinema-gate-pulse 2s ease-in-out infinite;
@@ -1298,7 +1312,7 @@ body {
 }
 .card-hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px oklch(0.585 0.233 264 / 0.12);
+  box-shadow: 0 8px 30px var(--glow-primary);
 }
 
 /* Indigo gradient border (for KPI cards, featured items) */
@@ -1311,7 +1325,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, oklch(0.585 0.233 264 / 0.5), oklch(0.715 0.165 195 / 0.3));
+  background: linear-gradient(135deg, var(--glow-primary), oklch(0.715 0.165 195 / 0.3));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -1320,5 +1334,5 @@ body {
 
 /* Focus glow for inputs */
 .focus-glow:focus-within {
-  box-shadow: 0 0 0 2px oklch(0.585 0.233 264 / 0.2), 0 0 15px oklch(0.585 0.233 264 / 0.1);
+  box-shadow: 0 0 0 2px var(--glow-primary), 0 0 15px var(--glow-primary);
 }

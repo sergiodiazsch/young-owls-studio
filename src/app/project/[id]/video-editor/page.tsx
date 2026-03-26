@@ -184,11 +184,11 @@ function pixelsToMs(px: number, scale: number): number {
 
 // ── Clip Colors ──
 const CLIP_COLORS: Record<string, string> = {
-  video: "bg-primary/80 border-primary/50 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]",
-  audio: "bg-[oklch(0.55_0.17_162/0.8)] border-[oklch(0.65_0.17_162/0.5)] hover:shadow-[0_0_10px_oklch(0.715_0.165_195/0.3)]",
-  image: "bg-[oklch(0.55_0.2_300/0.8)] border-[oklch(0.65_0.2_300/0.5)] hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.3)]",
-  text: "bg-[oklch(0.6_0.15_85/0.8)] border-[oklch(0.7_0.15_85/0.5)] hover:shadow-[0_0_10px_oklch(0.75_0.15_90/0.3)]",
-  subtitle: "bg-[oklch(0.6_0.17_55/0.8)] border-[oklch(0.7_0.17_55/0.5)] hover:shadow-[0_0_10px_oklch(0.7_0.15_55/0.3)]",
+  video: "bg-primary/80 border-primary/50 hover:shadow-md",
+  audio: "bg-[oklch(0.55_0.17_162/0.8)] border-[oklch(0.65_0.17_162/0.5)] hover:shadow-sm",
+  image: "bg-[oklch(0.55_0.2_300/0.8)] border-[oklch(0.65_0.2_300/0.5)] hover:shadow-md",
+  text: "bg-[oklch(0.6_0.15_85/0.8)] border-[oklch(0.7_0.15_85/0.5)] hover:shadow-sm",
+  subtitle: "bg-[oklch(0.6_0.17_55/0.8)] border-[oklch(0.7_0.17_55/0.5)] hover:shadow-sm",
 };
 
 // ── Filter Types & LUT Presets ──
@@ -423,12 +423,12 @@ export default function VideoEditorPage() {
         <div className="border-2 border-dashed border-border/40 rounded-xl relative overflow-hidden backdrop-blur-sm bg-card/80">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/[0.04] via-transparent to-transparent pointer-events-none" />
           <div className="relative flex flex-col items-center justify-center py-20">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 animate-float flex items-center justify-center mb-4 shadow-[0_0_30px_oklch(0.585_0.233_264/0.15)]">
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 animate-float flex items-center justify-center mb-4 shadow-[0_0_30px_var(--glow-primary)]">
               <FilmStrip className="w-7 h-7 text-muted-foreground" />
             </div>
             <h2 className="text-lg font-semibold mb-1">No video editor projects yet</h2>
             <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">Create your first project to start editing video sequences with timeline tools</p>
-            <Button onClick={() => setCreateDialogOpen(true)} className="shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)]">
+            <Button onClick={() => setCreateDialogOpen(true)} className="shadow-[0_0_15px_var(--glow-primary)]">
               <Plus className="w-4 h-4 mr-2" /> Create Project
             </Button>
           </div>
@@ -438,7 +438,7 @@ export default function VideoEditorPage() {
           {editorProjects.map((ep) => (
             <div
               key={ep.id}
-              className="border border-border/40 rounded-lg p-4 backdrop-blur-sm bg-card/80 hover:border-primary/40 transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+              className="border border-border/40 rounded-lg p-4 backdrop-blur-sm bg-card/80 hover:border-primary/40 transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-md"
               onClick={() => openProject(ep.id)}
             >
               <div className="flex items-start justify-between">
@@ -1789,7 +1789,7 @@ function VideoEditor({
         {/* ── Preview + Properties Panel ── */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Remotion Player Preview */}
-          <div className="flex-1 flex items-center justify-center bg-black relative min-h-[200px] ring-1 ring-border/20 shadow-[inset_0_0_30px_oklch(0.585_0.233_264/0.06)]">
+          <div className="flex-1 flex items-center justify-center bg-black relative min-h-[200px] ring-1 ring-border/20 shadow-[inset_0_0_30px_var(--glow-primary)]">
             <RemotionPlayer
               ref={playerRef}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3355,7 +3355,7 @@ function VideoEditor({
           <>
             <div className="fixed inset-0 z-50" role="button" tabIndex={-1} aria-label="Close menu" onClick={() => setTransitionMenu(null)} onKeyDown={(e) => { if (e.key === "Escape") setTransitionMenu(null); }} />
             <div
-              className="fixed z-50 bg-card/95 backdrop-blur-md border border-border/40 rounded-lg shadow-[0_0_20px_oklch(0.585_0.233_264/0.1)] py-1 min-w-[180px]"
+              className="fixed z-50 bg-card/95 backdrop-blur-md border border-border/40 rounded-lg shadow-[0_0_20px_var(--glow-primary)] py-1 min-w-[180px]"
               ref={(el) => {
                 if (!el) return;
                 const rect = el.getBoundingClientRect();
@@ -3610,7 +3610,7 @@ function VideoEditor({
       {regenDialog && (
         <>
           <div className="fixed inset-0 z-50 bg-black/60" role="button" tabIndex={-1} aria-label="Close dialog" onClick={() => setRegenDialog(null)} onKeyDown={(e) => { if (e.key === "Escape") setRegenDialog(null); }} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl shadow-[0_0_30px_oklch(0.585_0.233_264/0.12)] p-5 w-[420px] max-w-[90vw]">
+          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl shadow-[0_0_30px_var(--glow-primary)] p-5 w-[420px] max-w-[90vw]">
             <h3 className="text-sm font-semibold text-foreground mb-1">Original Prompt</h3>
             <p className="text-[10px] text-muted-foreground mb-3">
               Source: {regenDialog.sourceType.replace(/_/g, " ")} #{regenDialog.sourceId}
@@ -3635,7 +3635,7 @@ function VideoEditor({
 
       {/* ── AI Director Floating Chat Panel ── */}
       {aiDirectorOpen && (
-        <div className="fixed bottom-4 right-4 z-40 w-[380px] max-h-[500px] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl shadow-[0_0_30px_oklch(0.585_0.233_264/0.12)] flex flex-col overflow-hidden">
+        <div className="fixed bottom-4 right-4 z-40 w-[380px] max-h-[500px] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl shadow-[0_0_30px_var(--glow-primary)] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 bg-muted/30">
             <div className="flex items-center gap-2">
               <ChatCircleDots className="w-4 h-4 text-primary" />

@@ -31,6 +31,17 @@ export function applyThemeColors(colors: ThemeColors): void {
     const cssVar = `--${camelToKebab(key)}`;
     root.style.setProperty(cssVar, value);
   }
+
+  // Derive glow variables from primary/accent colors so they update with theme
+  if (colors.primary) {
+    // Strip trailing ')' if present, add alpha for glow effect
+    const base = colors.primary.replace(/\)$/, '').trim();
+    root.style.setProperty('--glow-primary', `${base} / 25%)`);
+  }
+  if (colors.accent) {
+    const base = colors.accent.replace(/\)$/, '').trim();
+    root.style.setProperty('--glow-accent', `${base} / 20%)`);
+  }
 }
 
 /**

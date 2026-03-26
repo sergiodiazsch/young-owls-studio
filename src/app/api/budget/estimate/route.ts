@@ -11,12 +11,36 @@ import { logger } from "@/lib/logger";
 import {
   calculateProjectCost,
   BUDGET_PROFILES,
+  MODEL_CATALOG,
   type BudgetTier,
+  type CategoryModelOverrides,
+  type ModelCategory,
 } from "@/lib/ai-pricing";
 
 const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
 
 export const dynamic = "force-dynamic";
+
+/** Validate that each override key is a known category and each value is a known model id */
+function validateOverrides(raw: unknown): CategoryModelOverrides | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const validCategories: ModelCategory[] = ["image", "video", "voice", "lipsync", "audio"];
+  const result: CategoryModelOverrides = {};
+
+  for (const key of Object.keys(obj)) {
+    if (!validCategories.includes(key as ModelCategory)) continue;
+    const modelId = obj[key];
+    if (typeof modelId !== "string") continue;
+
+    const catalog = MODEL_CATALOG[key as ModelCategory];
+    if (catalog.some((m) => m.id === modelId)) {
+      result[key as ModelCategory] = modelId;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for") || "anonymous";
@@ -40,7 +64,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { projectId, tier, retryMultiplier, includeUpscale } = body;
+  const { projectId, tier, retryMultiplier, includeUpscale, modelOverrides: rawOverrides } = body;
 
   if (!projectId) {
     return NextResponse.json(
@@ -56,6 +80,9 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  // Validate per-category model overrides (optional)
+  const modelOverrides = validateOverrides(rawOverrides);
 
   try {
     // Fetch scenes
@@ -175,6 +202,7 @@ export async function POST(req: Request) {
       profile,
       retryMultiplier as number | undefined,
       includeUpscale as boolean | undefined,
+      modelOverrides,
     );
 
     return NextResponse.json(estimate);

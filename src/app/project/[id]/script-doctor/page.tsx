@@ -3,10 +3,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { gsap } from "@/lib/gsap";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +22,7 @@ import dynamic from "next/dynamic";
 
 const TensionChart = dynamic(() => import("./tension-chart"), {
   ssr: false,
-  loading: () => <div className="h-[250px] w-full bg-muted/30 rounded-lg animate-pulse" />,
+  loading: () => <div className="h-[250px] w-full bg-muted rounded-lg animate-pulse" />,
 });
 
 import { Stethoscope } from "@phosphor-icons/react/dist/csr/Stethoscope";
@@ -54,21 +52,21 @@ interface AnalysisWithIssues extends ScriptAnalysis {
 // ── Severity Colors (semantic only) ──
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: "bg-destructive/15 text-destructive border-destructive/30 shadow-[0_0_8px_oklch(0.577_0.245_27.33/0.15)]",
-  major: "bg-destructive/10 text-destructive/80 border-destructive/20 shadow-[0_0_6px_oklch(0.577_0.245_27.33/0.1)]",
+  critical: "bg-destructive/15 text-destructive border-destructive",
+  major: "bg-destructive/15 text-destructive border-destructive",
   minor: "bg-muted text-muted-foreground border-border",
-  suggestion: "bg-primary/10 text-primary border-primary/20 shadow-[0_0_6px_oklch(0.585_0.233_264/0.1)]",
+  suggestion: "bg-primary/10 text-primary border-border",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  structure: "bg-primary/15 text-primary border-primary/25",
-  pacing: "bg-[oklch(0.75_0.15_85/0.15)] text-[oklch(0.75_0.15_85)] border-[oklch(0.75_0.15_85/0.25)]",
-  character: "bg-[oklch(0.72_0.17_162/0.15)] text-[oklch(0.72_0.17_162)] border-[oklch(0.72_0.17_162/0.25)]",
-  dialogue: "bg-accent/15 text-accent border-accent/25",
-  continuity: "bg-[oklch(0.65_0.2_15/0.15)] text-[oklch(0.65_0.2_15)] border-[oklch(0.65_0.2_15/0.25)]",
-  theme: "bg-[oklch(0.65_0.2_300/0.15)] text-[oklch(0.65_0.2_300)] border-[oklch(0.65_0.2_300/0.25)]",
-  logic: "bg-destructive/15 text-destructive border-destructive/25",
-  tone: "bg-[oklch(0.6_0.22_290/0.15)] text-[oklch(0.6_0.22_290)] border-[oklch(0.6_0.22_290/0.25)]",
+  structure: "bg-primary/15 text-primary border-border",
+  pacing: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-border",
+  character: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-border",
+  dialogue: "bg-accent/15 text-accent border-border",
+  continuity: "bg-destructive/15 text-destructive border-border",
+  theme: "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-border",
+  logic: "bg-destructive/15 text-destructive border-border",
+  tone: "bg-pink-500/15 text-pink-600 dark:text-pink-400 border-border",
 };
 
 // ── Status Badge ──
@@ -77,14 +75,14 @@ function StatusBadge({ status }: { status: string }) {
   switch (status) {
     case "completed":
       return (
-        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] gap-1">
+        <Badge variant="outline" className="bg-primary/10 text-primary border-border text-[10px] gap-1">
           <CheckCircle weight="fill" className="w-3 h-3" />
           Completed
         </Badge>
       );
     case "failed":
       return (
-        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] gap-1">
+        <Badge variant="outline" className="bg-destructive/10 text-destructive border-border text-[10px] gap-1">
           <XCircle weight="fill" className="w-3 h-3" />
           Failed
         </Badge>
@@ -171,12 +169,7 @@ function ScoreCard({
   score: number;
   loading: boolean;
 }) {
-  const getColor = (s: number) => {
-    if (s >= 80) return "text-primary";
-    if (s >= 60) return "text-muted-foreground";
-    if (s >= 40) return "text-destructive/70";
-    return "text-destructive";
-  };
+  const numRef = useRef<HTMLSpanElement>(null);
 
   const getTrackColor = (s: number) => {
     if (s >= 80) return "bg-primary";
@@ -185,35 +178,48 @@ function ScoreCard({
     return "bg-destructive";
   };
 
+  useEffect(() => {
+    if (loading || !numRef.current) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      numRef.current.textContent = String(score);
+      return;
+    }
+    const obj = { val: 0 };
+    gsap.to(obj, {
+      val: score,
+      duration: 0.8,
+      ease: "power2.out",
+      onUpdate: () => {
+        if (numRef.current) numRef.current.textContent = String(Math.round(obj.val));
+      },
+    });
+  }, [score, loading]);
+
   if (loading) {
     return (
-      <Card className="flex-1 min-w-[140px] backdrop-blur-sm bg-card/80 border-border/40">
-        <CardContent className="p-4">
-          <Skeleton className="h-4 w-20 mb-2" />
-          <Skeleton className="h-8 w-16 mb-2" />
-          <Skeleton className="h-2 w-full" />
-        </CardContent>
-      </Card>
+      <div className="flex-1 min-w-[140px] bg-card border border-border rounded-xl p-4">
+        <Skeleton className="h-4 w-20 mb-2 bg-muted" />
+        <Skeleton className="h-8 w-16 mb-2 bg-muted" />
+        <Skeleton className="h-2 w-full bg-muted" />
+      </div>
     );
   }
 
   return (
-    <Card className="flex-1 min-w-[140px] backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300">
-      <CardContent className="p-4">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          {label}
-        </p>
-        <p className={`text-3xl font-bold mt-1 ${getColor(score)}`} style={{ textShadow: score >= 60 ? '0 0 20px oklch(0.585 0.233 264 / 0.3)' : undefined }}>
-          {score}
-        </p>
-        <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${getTrackColor(score)}`}
-            style={{ width: `${score}%` }}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex-1 min-w-[140px] bg-card border border-border rounded-xl p-4 transition-all duration-200 hover:shadow-sm">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        {label}
+      </p>
+      <span ref={numRef} className="block text-3xl font-bold mt-1 text-foreground">
+        {score}
+      </span>
+      <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${getTrackColor(score)}`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -241,116 +247,108 @@ function IssueCard({
   try { if (issue.sceneIds) sceneIds = JSON.parse(issue.sceneIds); } catch {}
   try { if (issue.characterNames) characterNames = JSON.parse(issue.characterNames); } catch {}
 
-  const severityGlow = issue.severity === "critical"
-    ? "shadow-[0_0_12px_oklch(0.577_0.245_27.33/0.12)]"
-    : issue.severity === "major"
-      ? "shadow-[0_0_8px_oklch(0.577_0.245_27.33/0.08)]"
-      : "";
-
   const CATEGORY_BAR_COLORS: Record<string, string> = {
     structure: "bg-primary",
-    pacing: "bg-[oklch(0.75_0.15_85)]",
-    character: "bg-[oklch(0.72_0.17_162)]",
+    character: "bg-emerald-500",
     dialogue: "bg-accent",
-    continuity: "bg-[oklch(0.65_0.2_15)]",
-    theme: "bg-[oklch(0.65_0.2_300)]",
+    pacing: "bg-yellow-500",
+    theme: "bg-violet-500",
+    tone: "bg-pink-500",
     logic: "bg-destructive",
-    tone: "bg-[oklch(0.6_0.22_290)]",
+    continuity: "bg-destructive",
   };
 
   const isAppliedOrDismissed = issue.isResolved || isDismissed;
 
   return (
-    <Card
-      className={`backdrop-blur-sm bg-card/80 border-border/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300 overflow-hidden ${severityGlow} ${isAppliedOrDismissed ? "opacity-50" : ""}`}
+    <div
+      className={`bg-card border border-border rounded-xl overflow-hidden transition-all duration-200 ${isAppliedOrDismissed ? "opacity-50" : ""}`}
     >
       <div className="flex">
         <div className={`w-1 shrink-0 ${CATEGORY_BAR_COLORS[issue.category] || "bg-muted"}`} />
-        <CardContent className="p-4 flex-1">
+        <div className="p-4 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge variant="outline" className={SEVERITY_COLORS[issue.severity] || ""}>{issue.severity}</Badge>
-              <Badge variant="outline" className={CATEGORY_COLORS[issue.category] || ""}>{issue.category}</Badge>
-              {issue.isResolved && !isDismissed && (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Applied</Badge>
-              )}
-              {isDismissed && (
-                <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Dismissed</Badge>
-              )}
-            </div>
-            <h4 className="font-semibold text-sm">{issue.title}</h4>
-            <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>
-            {issue.recommendation && (
-              <div className="mt-2 rounded-md bg-muted/50 backdrop-blur-sm p-2.5 text-xs text-muted-foreground">
-                <span className="font-semibold">Recommendation:</span> {issue.recommendation}
-              </div>
-            )}
-            <div className="flex items-center flex-wrap gap-2 mt-2">
-              {sceneIds.length > 0 && (
-                <span className="text-xs text-muted-foreground">Scenes: {sceneIds.join(", ")}</span>
-              )}
-              {characterNames.length > 0 && (
-                <span className="text-xs text-muted-foreground">Characters: {characterNames.join(", ")}</span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5 shrink-0">
-            {issue.recommendation && sceneIds.length > 0 && !isAppliedOrDismissed && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                onClick={() => onApply(issue, sceneIds)}
-                disabled={isApplying}
-              >
-                {isApplying ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                  </svg>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <Badge variant="outline" className={SEVERITY_COLORS[issue.severity] || ""}>{issue.severity}</Badge>
+                <Badge variant="outline" className={CATEGORY_COLORS[issue.category] || ""}>{issue.category}</Badge>
+                {issue.isResolved && !isDismissed && (
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-border">Applied</Badge>
                 )}
-                {isApplying ? "Generating options…" : "Apply"}
-              </Button>
-            )}
-            {!isAppliedOrDismissed && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => onDismiss(issue.id)}
-              >
-                Dismiss
-              </Button>
-            )}
-            {isAppliedOrDismissed && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground"
-                onClick={() => onToggleResolved(issue.id, false)}
-              >
-                Undo
-              </Button>
-            )}
-            {sceneIds.length > 0 && (
-              <a
-                href={`/project/${projectId}/scenes/${sceneIds[0]}`}
-                className="text-[10px] text-center text-muted-foreground hover:text-primary transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Go to scene →
-              </a>
-            )}
+                {isDismissed && (
+                  <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Dismissed</Badge>
+                )}
+              </div>
+              <h4 className="font-semibold text-sm text-foreground">{issue.title}</h4>
+              <p className="text-sm text-muted-foreground mt-1">{issue.description}</p>
+              {issue.recommendation && (
+                <div className="mt-3 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">Recommendation:</span> {issue.recommendation}
+                </div>
+              )}
+              <div className="flex items-center flex-wrap gap-2 mt-2">
+                {sceneIds.length > 0 && (
+                  <span className="text-xs text-muted-foreground">Scenes: {sceneIds.join(", ")}</span>
+                )}
+                {characterNames.length > 0 && (
+                  <span className="text-xs text-muted-foreground">Characters: {characterNames.join(", ")}</span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5 shrink-0">
+              {issue.recommendation && sceneIds.length > 0 && !isAppliedOrDismissed && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs border-border text-primary hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary"
+                  onClick={() => onApply(issue, sceneIds)}
+                  disabled={isApplying}
+                >
+                  {isApplying ? (
+                    <Spinner className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                  )}
+                  {isApplying ? "Generating..." : "Apply"}
+                </Button>
+              )}
+              {!isAppliedOrDismissed && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                  onClick={() => onDismiss(issue.id)}
+                >
+                  Dismiss
+                </Button>
+              )}
+              {isAppliedOrDismissed && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                  onClick={() => onToggleResolved(issue.id, false)}
+                >
+                  Undo
+                </Button>
+              )}
+              {sceneIds.length > 0 && (
+                <a
+                  href={`/project/${projectId}/scenes/${sceneIds[0]}`}
+                  className="text-[10px] text-center text-muted-foreground hover:text-primary transition-colors focus-visible:ring-2 focus-visible:ring-primary rounded"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Go to scene
+                </a>
+              )}
+            </div>
           </div>
         </div>
-      </CardContent>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -407,6 +405,17 @@ function extractScore(analysis: ScriptAnalysis): number | null {
   }
 }
 
+// ── Section Header ──
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-1 h-4 rounded-full bg-primary shrink-0" />
+      <h2 className="text-sm font-semibold text-foreground">{children}</h2>
+    </div>
+  );
+}
+
 // ── Main Page ──
 
 export default function ScriptDoctorPage() {
@@ -429,16 +438,6 @@ export default function ScriptDoctorPage() {
   const [deleteAnalysisTarget, setDeleteAnalysisTarget] = useState<number | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
-
-  // GSAP stagger animation on analysis type cards
-  useEffect(() => {
-    if (!gridRef.current) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const cards = gridRef.current.querySelectorAll("[data-type-card]");
-    if (cards.length === 0) return;
-    gsap.from(cards, { opacity: 0, y: 8, stagger: 0.04, duration: 0.3, ease: "power2.out", clearProps: "all" });
-  }, [pageView]);
-
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingStartRef = useRef<number>(0);
 
@@ -815,16 +814,6 @@ export default function ScriptDoctorPage() {
   // ── Whether we have results to show ──
   const hasResults = parsedResult && currentAnalysis?.status === "completed" && !analyzing;
 
-  const resultsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!resultsRef.current || !hasResults) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const sections = resultsRef.current.querySelectorAll("[data-doctor-section]");
-    if (sections.length === 0) return;
-    gsap.from(sections, { opacity: 0, y: 8, stagger: 0.04, duration: 0.3, ease: "power2.out", clearProps: "all" });
-  }, [hasResults, currentAnalysisId]);
-
   // ── Format analysis type label ──
 
   const getTypeLabel = (type: string) => {
@@ -837,7 +826,7 @@ export default function ScriptDoctorPage() {
   function renderHistorySidebar() {
     return (
       <div className="w-full space-y-3">
-        {/* New Analysis button at top of sidebar */}
+        {/* New Analysis button */}
         <Button
           onClick={() => {
             setPageView("new");
@@ -845,7 +834,7 @@ export default function ScriptDoctorPage() {
             setParsedResult(null);
             setCurrentAnalysisId(null);
           }}
-          className="w-full gap-2"
+          className="w-full gap-2 focus-visible:ring-2 focus-visible:ring-primary"
           variant={pageView === "new" ? "default" : "outline"}
           size="sm"
         >
@@ -858,9 +847,9 @@ export default function ScriptDoctorPage() {
         {/* History heading */}
         <div className="flex items-center gap-2 px-1">
           <ClockCounterClockwise className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             History
-          </h3>
+          </h2>
           {!historyLoading && (
             <span className="text-[10px] text-muted-foreground ml-auto">
               {historyList.length} total
@@ -873,7 +862,7 @@ export default function ScriptDoctorPage() {
           {historyLoading ? (
             <div className="space-y-2 px-1">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                <Skeleton key={i} className="h-16 w-full rounded-lg bg-muted" />
               ))}
             </div>
           ) : historyList.length === 0 ? (
@@ -894,10 +883,10 @@ export default function ScriptDoctorPage() {
                   key={analysis.id}
                   type="button"
                   onClick={() => loadAnalysis(analysis.id)}
-                  className={`w-full text-left rounded-lg border p-3 transition-all duration-300 group ${
+                  className={`w-full text-left rounded-lg border p-3 transition-all duration-200 group focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
                     isActive
-                      ? "border-primary bg-primary/[0.04] shadow-[0_0_10px_oklch(0.585_0.233_264/0.1)]"
-                      : "border-border/40 hover:border-primary/40 hover:bg-accent/40 hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.06)]"
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border hover:border-primary hover:bg-muted"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -927,7 +916,7 @@ export default function ScriptDoctorPage() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none focus-visible:opacity-100"
                       aria-label={`Delete ${analysis.analysisType} analysis`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -950,16 +939,16 @@ export default function ScriptDoctorPage() {
 
   function renderNewAnalysis() {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <div>
-          <h2 className="text-lg font-semibold">New Analysis</h2>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
+          <SectionHeader>New Analysis</SectionHeader>
+          <p className="text-[13px] text-muted-foreground mt-1 ml-3">
             Select an analysis type and let AI review your screenplay.
           </p>
         </div>
 
-        {/* Analysis type grid */}
-        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Analysis type grid -- 3x2 cards */}
+        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {ANALYSIS_TYPES.map((at) => {
             const isSelected = analysisType === at.value;
             const lastRun = lastRunByType[at.value];
@@ -970,10 +959,10 @@ export default function ScriptDoctorPage() {
                 type="button"
                 disabled={analyzing}
                 onClick={() => setAnalysisType(at.value)}
-                className={`group relative text-left rounded-xl border-2 p-4 backdrop-blur-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                className={`group relative text-left rounded-xl border p-4 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   isSelected
-                    ? "border-primary bg-primary/[0.04] shadow-[0_0_15px_oklch(0.585_0.233_264/0.12)]"
-                    : "border-border/40 bg-card/80 hover:border-primary/40 hover:bg-accent/40 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+                    ? "ring-2 ring-primary bg-primary/10 border-primary"
+                    : "border-border bg-card hover:border-primary hover:bg-muted"
                 } ${analyzing ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <div className="flex items-start gap-3">
@@ -981,21 +970,21 @@ export default function ScriptDoctorPage() {
                     className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 transition-colors ${
                       isSelected
                         ? "bg-primary/15 text-primary"
-                        : "bg-primary/10 text-muted-foreground group-hover:text-primary"
+                        : "bg-muted text-muted-foreground group-hover:text-primary"
                     }`}
                   >
                     <AnalysisTypeIcon type={at.value} className="w-4.5 h-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{at.label}</span>
+                      <span className="text-sm font-semibold text-foreground">{at.label}</span>
                       <InfoTooltip text={at.tip} />
                     </div>
                     <p className="text-[12px] text-muted-foreground mt-0.5 leading-snug">
                       {at.description}
                     </p>
                     {lastRun && (
-                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1">
                         Last run: {new Date(lastRun).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     )}
@@ -1015,26 +1004,30 @@ export default function ScriptDoctorPage() {
           })}
         </div>
 
-        {/* Custom prompt textarea */}
+        {/* Custom prompt textarea -- only visible when Custom is selected */}
         {analysisType === "custom" && (
           <div>
-            <p className="text-sm font-medium mb-2">Custom Prompt</p>
+            <label htmlFor="custom-prompt" className="text-sm font-medium text-foreground mb-2 block">
+              Custom Prompt
+            </label>
             <Textarea
+              id="custom-prompt"
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
               placeholder="Enter specific analysis instructions... e.g. 'Focus on the romantic subplot between characters A and B. Evaluate if the dialogue feels authentic and if their arc is satisfying.'"
               rows={3}
               disabled={analyzing}
+              className="focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
         )}
 
-        {/* Start Analysis Button -- uses semantic primary colors */}
+        {/* Start Analysis Button */}
         <Button
           onClick={handleStartAnalysis}
           disabled={analyzing}
           size="lg"
-          className="w-full font-semibold text-base h-12 gap-2 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300"
+          className="w-full font-semibold text-base h-12 gap-2 shadow-md transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary"
         >
           {analyzing ? (
             <>
@@ -1052,10 +1045,10 @@ export default function ScriptDoctorPage() {
         {/* Empty state hint */}
         {!analyzing && historyList.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 dark:bg-primary/5 flex items-center justify-center mb-3">
-              <FilmScript className="w-7 h-7 text-primary/60" />
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-3">
+              <FilmScript className="w-7 h-7 text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium mb-1">Your AI script consultant</p>
+            <p className="text-sm font-medium text-foreground mb-1">Your AI script consultant</p>
             <p className="text-[13px] text-muted-foreground text-center max-w-sm leading-relaxed">
               Select an analysis type above and discover insights about your screenplay.
             </p>
@@ -1069,12 +1062,12 @@ export default function ScriptDoctorPage() {
 
   function renderDetailView() {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* Back button */}
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground"
+          className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
           onClick={() => {
             setPageView("new");
             setCurrentAnalysis(null);
@@ -1082,6 +1075,7 @@ export default function ScriptDoctorPage() {
             setCurrentAnalysisId(null);
             setAnalyzing(false);
           }}
+          aria-label="Go back to new analysis"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
@@ -1089,72 +1083,66 @@ export default function ScriptDoctorPage() {
 
         {/* Loading State */}
         {analyzing && (
-          <Card className="backdrop-blur-sm bg-card/80 border-border/40 shadow-[0_0_20px_oklch(0.585_0.233_264/0.1)]">
-            <CardContent className="p-8 text-center space-y-4">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2 shadow-[0_0_20px_oklch(0.585_0.233_264/0.2)] animate-pulse">
-                <Spinner className="w-6 h-6 text-primary animate-spin" />
-              </div>
-              <p className="font-medium">Analyzing your screenplay...</p>
-              <p className="text-sm text-muted-foreground">
-                This may take 30-60 seconds depending on the length of your script.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-card border border-border rounded-xl p-8 text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2 animate-pulse">
+              <Spinner className="w-6 h-6 text-primary animate-spin" />
+            </div>
+            <p className="font-medium text-foreground">Analyzing your screenplay...</p>
+            <p className="text-sm text-muted-foreground">
+              This may take 30-60 seconds depending on the length of your script.
+            </p>
+          </div>
         )}
 
         {/* Error State */}
         {currentAnalysis?.status === "failed" && !analyzing && (
-          <Card className="border-destructive/30">
-            <CardContent className="p-6 text-center">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 mb-3">
-                <Warning weight="fill" className="w-5 h-5 text-destructive" />
-              </div>
-              <p className="font-medium text-destructive">
-                Analysis Failed
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {currentAnalysis.error || "An unknown error occurred"}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={() => {
-                  setPageView("new");
-                  setCurrentAnalysis(null);
-                  setParsedResult(null);
-                }}
-              >
-                Try Again
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="bg-card border border-destructive rounded-xl p-6 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10 mb-3">
+              <Warning weight="fill" className="w-5 h-5 text-destructive" />
+            </div>
+            <p className="font-medium text-destructive">
+              Analysis Failed
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {currentAnalysis.error || "An unknown error occurred"}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 focus-visible:ring-2 focus-visible:ring-primary"
+              onClick={() => {
+                setPageView("new");
+                setCurrentAnalysis(null);
+                setParsedResult(null);
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
         )}
 
         {/* Results */}
         {hasResults && (
-          <div ref={resultsRef} className="space-y-5">
-            {/* Overall Score + Logline */}
-            <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-              <CardContent className="p-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex flex-col items-center justify-center min-w-[80px]">
-                    <span className="text-4xl font-bold" style={{ textShadow: '0 0 25px oklch(0.585 0.233 264 / 0.35)' }}>{parsedResult.overallScore}</span>
-                    <span className="text-xs text-muted-foreground mt-1">Overall</span>
-                  </div>
-                  <Separator orientation="vertical" className="h-auto self-stretch" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{parsedResult.logline}</p>
-                    <p className="text-sm text-muted-foreground mt-1.5">
-                      {parsedResult.synopsis}
-                    </p>
-                  </div>
+          <div className="space-y-6">
+            {/* Executive Summary Card */}
+            <div className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex flex-col items-center justify-center min-w-[80px]">
+                  <span className="text-4xl font-bold text-foreground">{parsedResult.overallScore}</span>
+                  <span className="text-xs text-muted-foreground mt-1">Overall</span>
                 </div>
-              </CardContent>
-            </Card>
+                <Separator orientation="vertical" className="h-auto self-stretch" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm text-foreground">{parsedResult.logline}</p>
+                  <p className="text-sm text-muted-foreground mt-1.5">
+                    {parsedResult.synopsis}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-            {/* Score Cards */}
-            <div data-doctor-section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Score Cards Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <ScoreCard
                 label="Structure"
                 score={parsedResult.structure.score}
@@ -1188,459 +1176,444 @@ export default function ScriptDoctorPage() {
 
             {/* Tension Curve */}
             {parsedResult.pacing.tensionCurve.length > 0 && (
-              <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-                <CardContent className="p-5">
-                  <h3 className="text-sm font-semibold mb-3">Tension Curve</h3>
+              <div className="bg-card border border-border rounded-xl p-6">
+                <SectionHeader>Tension Curve</SectionHeader>
+                <div className="mt-4">
                   <TensionChart data={parsedResult.pacing.tensionCurve} />
-                  {parsedResult.pacing.notes && (
-                    <p className="text-xs text-muted-foreground mt-3">
-                      {parsedResult.pacing.notes}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+                {parsedResult.pacing.notes && (
+                  <p className="text-xs text-muted-foreground mt-3">
+                    {parsedResult.pacing.notes}
+                  </p>
+                )}
+              </div>
             )}
 
-            {/* Issues */}
-            <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Issues</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {filteredIssues.length} issue{filteredIssues.length !== 1 ? "s" : ""}
-                  </span>
-                </div>
+            {/* Issues Section */}
+            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <SectionHeader>Issues</SectionHeader>
+                <span className="text-xs text-muted-foreground">
+                  {filteredIssues.length} issue{filteredIssues.length !== 1 ? "s" : ""}
+                </span>
+              </div>
 
-                {/* Search + category filter */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search issues..."
-                      value={issueSearch}
-                      onChange={(e) => setIssueSearch(e.target.value)}
-                      className="w-full text-sm pl-8 pr-3 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    />
-                  </div>
-                  {issueCategories.length > 1 && (
-                    <select
-                      value={categoryFilter}
-                      onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="text-xs px-2 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+              {/* Search + category filter */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search issues..."
+                    value={issueSearch}
+                    onChange={(e) => setIssueSearch(e.target.value)}
+                    className="w-full text-sm pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label="Search issues"
+                  />
+                </div>
+                {issueCategories.length > 1 && (
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="text-xs px-2 py-1.5 rounded-md border border-border bg-background text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label="Filter by category"
+                  >
+                    <option value="all">All categories</option>
+                    {issueCategories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Severity filter chips */}
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by severity">
+                {(["all", "critical", "major", "minor", "suggestion"] as const).map((sev) => {
+                  const isActive = severityFilter === sev;
+                  const count = issueCounts[sev];
+                  return (
+                    <button
+                      key={sev}
+                      type="button"
+                      onClick={() => setSeverityFilter(sev)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all duration-200 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        isActive
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border hover:border-primary hover:text-foreground"
+                      }`}
                     >
-                      <option value="all">All categories</option>
-                      {issueCategories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                      {sev} ({count})
+                    </button>
+                  );
+                })}
+              </div>
 
-                <Tabs
-                  value={severityFilter}
-                  onValueChange={(v) => setSeverityFilter(v as SeverityFilter)}
-                >
-                  <TabsList className="w-full justify-start">
-                    <TabsTrigger value="all">
-                      All ({issueCounts.all})
-                    </TabsTrigger>
-                    <TabsTrigger value="critical">
-                      Critical ({issueCounts.critical})
-                    </TabsTrigger>
-                    <TabsTrigger value="major">
-                      Major ({issueCounts.major})
-                    </TabsTrigger>
-                    <TabsTrigger value="minor">
-                      Minor ({issueCounts.minor})
-                    </TabsTrigger>
-                    <TabsTrigger value="suggestion">
-                      Suggestion ({issueCounts.suggestion})
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <div className="mt-3 space-y-3">
-                    {filteredIssues.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        {issueSearch
-                          ? `No issues matching "${issueSearch}"`
-                          : severityFilter === "all"
-                            ? "No issues found - your script is looking great!"
-                            : `No ${severityFilter} issues found.`}
-                      </p>
-                    ) : (
-                      filteredIssues.map((issue) => (
-                        <IssueCard
-                          key={issue.id}
-                          issue={issue}
-                          projectId={projectId}
-                          onToggleResolved={handleToggleResolved}
-                          onApply={handleApplyRecommendation}
-                          onDismiss={handleDismiss}
-                          isApplying={applyingIssueId === issue.id}
-                          isDismissed={dismissedIds.has(issue.id)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </Tabs>
-              </CardContent>
-            </Card>
+              {/* Issue cards */}
+              <div className="space-y-3">
+                {filteredIssues.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {issueSearch
+                      ? `No issues matching "${issueSearch}"`
+                      : severityFilter === "all"
+                        ? "No issues found - your script is looking great!"
+                        : `No ${severityFilter} issues found.`}
+                  </p>
+                ) : (
+                  filteredIssues.map((issue) => (
+                    <IssueCard
+                      key={issue.id}
+                      issue={issue}
+                      projectId={projectId}
+                      onToggleResolved={handleToggleResolved}
+                      onApply={handleApplyRecommendation}
+                      onDismiss={handleDismiss}
+                      isApplying={applyingIssueId === issue.id}
+                      isDismissed={dismissedIds.has(issue.id)}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
 
             {/* Character Arcs */}
             {parsedResult.characters.length > 0 && (
-              <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-                <CardContent className="p-5 space-y-4">
-                  <h3 className="text-sm font-semibold">Character Arcs</h3>
-                  <div className="space-y-3">
-                    {parsedResult.characters.map((char) => (
-                      <div key={char.name} className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              {char.name}
-                            </span>
-                            {char.hasArc ? (
-                              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                                Has Arc
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[10px]">
-                                Flat Arc
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {char.arcScore}/100
+              <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+                <SectionHeader>Character Arcs</SectionHeader>
+                <div className="space-y-4">
+                  {parsedResult.characters.map((char) => (
+                    <div key={char.name} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {char.name}
                           </span>
+                          {char.hasArc ? (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-border text-[10px]">
+                              Has Arc
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[10px]">
+                              Flat Arc
+                            </Badge>
+                          )}
                         </div>
-                        <Progress value={char.arcScore} className="h-2" />
-                        <p className="text-xs text-muted-foreground">
-                          {char.development}
-                        </p>
-                        {char.strengths.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {char.strengths.map((s, i) => (
-                              <Badge
-                                key={i}
-                                variant="outline"
-                                className="text-[10px] bg-primary/10 text-primary border-primary/20"
-                              >
-                                {s}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        {char.weaknesses.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {char.weaknesses.map((w, i) => (
-                              <Badge
-                                key={i}
-                                variant="outline"
-                                className="text-[10px] bg-destructive/10 text-destructive border-destructive/20"
-                              >
-                                {w}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {char.arcScore}/100
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <Progress value={char.arcScore} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        {char.development}
+                      </p>
+                      {char.strengths.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {char.strengths.map((s, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-[10px] bg-primary/10 text-primary border-border"
+                            >
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {char.weaknesses.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {char.weaknesses.map((w, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-[10px] bg-destructive/10 text-destructive border-border"
+                            >
+                              {w}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Themes */}
             {parsedResult.themes.identified.length > 0 && (
-              <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-                <CardContent className="p-5 space-y-4">
-                  <h3 className="text-sm font-semibold">Themes</h3>
-                  <div className="space-y-3">
-                    {parsedResult.themes.identified.map((theme, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <Badge
-                          variant="outline"
-                          className={
-                            theme.strength === "strong"
-                              ? "bg-primary/10 text-primary border-primary/20"
-                              : theme.strength === "moderate"
-                                ? "bg-muted text-muted-foreground border-border"
-                                : "bg-muted text-muted-foreground border-muted"
-                          }
-                        >
-                          {theme.strength}
-                        </Badge>
-                        <div>
-                          <p className="text-sm font-medium">{theme.theme}</p>
-                          {theme.scenes.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Scenes: {theme.scenes.join(", ")}
-                            </p>
-                          )}
-                        </div>
+              <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+                <SectionHeader>Themes</SectionHeader>
+                <div className="space-y-3">
+                  {parsedResult.themes.identified.map((theme, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <Badge
+                        variant="outline"
+                        className={
+                          theme.strength === "strong"
+                            ? "bg-primary/10 text-primary border-border"
+                            : "bg-muted text-muted-foreground border-border"
+                        }
+                      >
+                        {theme.strength}
+                      </Badge>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{theme.theme}</p>
+                        {theme.scenes.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Scenes: {theme.scenes.join(", ")}
+                          </p>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                  {parsedResult.themes.notes && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {parsedResult.themes.notes}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                    </div>
+                  ))}
+                </div>
+                {parsedResult.themes.notes && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {parsedResult.themes.notes}
+                  </p>
+                )}
+              </div>
             )}
 
             {/* Mood & Color */}
             {parsedResult.moodAndColor && parsedResult.moodAndColor.scenes.length > 0 && (
-              <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Mood & Color</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs gap-1.5 h-7"
-                      onClick={() => {
-                        const data = {
-                          episode_anchor_mood: parsedResult.moodAndColor!.episodeAnchorMood,
-                          scenes: parsedResult.moodAndColor!.scenes.map(s => ({
-                            scene_number: s.sceneNumber,
-                            dominant_mood: s.dominantMood,
-                            recommended_brightness_percent: s.recommendedBrightnessPercent,
-                            color_palette: s.colorPalette,
-                            mood_notes: s.moodNotes,
-                          })),
-                        };
-                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `mood-color-${currentAnalysis?.id || "export"}.json`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      Export JSON
-                    </Button>
-                  </div>
+              <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <SectionHeader>Mood &amp; Color</SectionHeader>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs gap-1.5 h-7 focus-visible:ring-2 focus-visible:ring-primary"
+                    onClick={() => {
+                      const data = {
+                        episode_anchor_mood: parsedResult.moodAndColor!.episodeAnchorMood,
+                        scenes: parsedResult.moodAndColor!.scenes.map(s => ({
+                          scene_number: s.sceneNumber,
+                          dominant_mood: s.dominantMood,
+                          recommended_brightness_percent: s.recommendedBrightnessPercent,
+                          color_palette: s.colorPalette,
+                          mood_notes: s.moodNotes,
+                        })),
+                      };
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `mood-color-${currentAnalysis?.id || "export"}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export JSON
+                  </Button>
+                </div>
 
-                  {/* Anchor Mood Badge */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Episode Mood:</span>
-                    <Badge className="bg-primary/15 text-primary border-primary/25 text-sm font-semibold capitalize shadow-[0_0_10px_oklch(0.585_0.233_264/0.2)]">
-                      {parsedResult.moodAndColor.episodeAnchorMood}
-                    </Badge>
-                  </div>
+                {/* Anchor Mood Badge */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Episode Mood:</span>
+                  <Badge className="bg-primary/15 text-primary border-border text-sm font-semibold capitalize shadow-sm">
+                    {parsedResult.moodAndColor.episodeAnchorMood}
+                  </Badge>
+                </div>
 
-                  {/* Per-scene mood pills */}
-                  <div className="space-y-2">
-                    {parsedResult.moodAndColor.scenes.map((scene) => (
-                      <div key={scene.sceneNumber} className="flex items-center gap-3 rounded-lg border border-border/30 bg-muted/10 p-2.5">
-                        <span className="text-[10px] font-mono text-muted-foreground w-6 shrink-0 text-right">
-                          S{scene.sceneNumber}
-                        </span>
-                        <Badge variant="outline" className="text-[11px] capitalize shrink-0">
-                          {scene.dominantMood}
-                        </Badge>
-                        {/* Color palette swatches */}
-                        <div className="flex gap-1 shrink-0">
-                          {scene.colorPalette.map((color, ci) => (
-                            <div
-                              key={ci}
-                              className="w-5 h-5 rounded-sm border border-border/50"
-                              style={{ backgroundColor: color }}
-                              title={color}
-                            />
-                          ))}
-                        </div>
-                        {/* Brightness indicator */}
-                        <div className="flex items-center gap-1.5 shrink-0" title={`Brightness: ${scene.recommendedBrightnessPercent}%`}>
-                          <div className="w-12 h-1.5 rounded-full bg-muted/40 overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${scene.recommendedBrightnessPercent}%`,
-                                background: `linear-gradient(90deg, oklch(0.4 0 0), oklch(0.95 0 0))`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-[9px] font-mono text-muted-foreground w-7">
-                            {scene.recommendedBrightnessPercent}%
-                          </span>
-                        </div>
-                        {/* Notes (truncated, shown on hover) */}
-                        <p className="text-[10px] text-muted-foreground truncate min-w-0" title={scene.moodNotes}>
-                          {scene.moodNotes}
-                        </p>
+                {/* Per-scene mood pills */}
+                <div className="space-y-2">
+                  {parsedResult.moodAndColor.scenes.map((scene) => (
+                    <div key={scene.sceneNumber} className="flex items-center gap-3 rounded-lg border border-border bg-muted p-2.5">
+                      <span className="text-[10px] font-mono text-muted-foreground w-6 shrink-0 text-right">
+                        S{scene.sceneNumber}
+                      </span>
+                      <Badge variant="outline" className="text-[11px] capitalize shrink-0 border-border">
+                        {scene.dominantMood}
+                      </Badge>
+                      {/* Color palette swatches */}
+                      <div className="flex gap-1 shrink-0">
+                        {scene.colorPalette.map((color, ci) => (
+                          <div
+                            key={ci}
+                            className="w-5 h-5 rounded-sm border border-border"
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      {/* Brightness indicator */}
+                      <div className="flex items-center gap-1.5 shrink-0" title={`Brightness: ${scene.recommendedBrightnessPercent}%`}>
+                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-foreground/30"
+                            style={{ width: `${scene.recommendedBrightnessPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] font-mono text-muted-foreground w-7">
+                          {scene.recommendedBrightnessPercent}%
+                        </span>
+                      </div>
+                      {/* Notes */}
+                      <p className="text-[10px] text-muted-foreground truncate min-w-0" title={scene.moodNotes}>
+                        {scene.moodNotes}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Structure Details */}
-            <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-              <CardContent className="p-5 space-y-4">
-                <h3 className="text-sm font-semibold">Structure Analysis</h3>
+            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+              <SectionHeader>Structure Analysis</SectionHeader>
 
-                {/* Act Breaks */}
-                {parsedResult.structure.actBreaks.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Act Breaks
+              {/* Act Breaks */}
+              {parsedResult.structure.actBreaks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Act Breaks
+                  </p>
+                  {parsedResult.structure.actBreaks.map((ab) => (
+                    <div
+                      key={ab.act}
+                      className="rounded-lg bg-muted p-3 text-sm"
+                    >
+                      <span className="font-semibold text-foreground">Act {ab.act}</span>{" "}
+                      <span className="text-muted-foreground">
+                        (Scenes {ab.startsAtScene}-{ab.endsAtScene})
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {ab.assessment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Key Moments */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {parsedResult.structure.incitingIncident && (
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Inciting Incident
                     </p>
-                    {parsedResult.structure.actBreaks.map((ab) => (
-                      <div
-                        key={ab.act}
-                        className="rounded-md bg-muted/50 p-3 text-sm"
-                      >
-                        <span className="font-semibold">Act {ab.act}</span>{" "}
-                        <span className="text-muted-foreground">
-                          (Scenes {ab.startsAtScene}-{ab.endsAtScene})
-                        </span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {ab.assessment}
-                        </p>
-                      </div>
-                    ))}
+                    <p className="text-sm mt-1 text-foreground">
+                      Scene {parsedResult.structure.incitingIncident.sceneId}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {parsedResult.structure.incitingIncident.assessment}
+                    </p>
                   </div>
                 )}
-
-                {/* Key Moments */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {parsedResult.structure.incitingIncident && (
-                    <div className="rounded-md bg-muted/50 p-3">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Inciting Incident
-                      </p>
-                      <p className="text-sm mt-1">
-                        Scene {parsedResult.structure.incitingIncident.sceneId}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {parsedResult.structure.incitingIncident.assessment}
-                      </p>
-                    </div>
-                  )}
-                  {parsedResult.structure.midpoint && (
-                    <div className="rounded-md bg-muted/50 p-3">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Midpoint
-                      </p>
-                      <p className="text-sm mt-1">
-                        Scene {parsedResult.structure.midpoint.sceneId}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {parsedResult.structure.midpoint.assessment}
-                      </p>
-                    </div>
-                  )}
-                  {parsedResult.structure.climax && (
-                    <div className="rounded-md bg-muted/50 p-3">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Climax
-                      </p>
-                      <p className="text-sm mt-1">
-                        Scene {parsedResult.structure.climax.sceneId}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {parsedResult.structure.climax.assessment}
-                      </p>
-                    </div>
-                  )}
-                  {parsedResult.structure.resolution && (
-                    <div className="rounded-md bg-muted/50 p-3">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Resolution
-                      </p>
-                      <p className="text-sm mt-1">
-                        Scene {parsedResult.structure.resolution.sceneId}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {parsedResult.structure.resolution.assessment}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {parsedResult.structure.notes && (
-                  <p className="text-xs text-muted-foreground">
-                    {parsedResult.structure.notes}
-                  </p>
+                {parsedResult.structure.midpoint && (
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Midpoint
+                    </p>
+                    <p className="text-sm mt-1 text-foreground">
+                      Scene {parsedResult.structure.midpoint.sceneId}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {parsedResult.structure.midpoint.assessment}
+                    </p>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
+                {parsedResult.structure.climax && (
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Climax
+                    </p>
+                    <p className="text-sm mt-1 text-foreground">
+                      Scene {parsedResult.structure.climax.sceneId}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {parsedResult.structure.climax.assessment}
+                    </p>
+                  </div>
+                )}
+                {parsedResult.structure.resolution && (
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Resolution
+                    </p>
+                    <p className="text-sm mt-1 text-foreground">
+                      Scene {parsedResult.structure.resolution.sceneId}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {parsedResult.structure.resolution.assessment}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {parsedResult.structure.notes && (
+                <p className="text-xs text-muted-foreground">
+                  {parsedResult.structure.notes}
+                </p>
+              )}
+            </div>
 
             {/* Dialogue Details */}
-            <Card data-doctor-section className="backdrop-blur-sm bg-card/80 border-border/40">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Dialogue Analysis</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Voice Distinctness:
-                    </span>
-                    <span className="text-xs font-semibold">
-                      {parsedResult.dialogue.voiceDistinctness}/100
-                    </span>
-                  </div>
+            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <SectionHeader>Dialogue Analysis</SectionHeader>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Voice Distinctness:
+                  </span>
+                  <span className="text-xs font-semibold text-foreground">
+                    {parsedResult.dialogue.voiceDistinctness}/100
+                  </span>
                 </div>
+              </div>
 
-                {/* On-the-nose */}
-                {parsedResult.dialogue.onTheNose.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      On-the-Nose Dialogue
-                    </p>
-                    {parsedResult.dialogue.onTheNose.map((item, i) => (
-                      <div
-                        key={i}
-                        className="rounded-md bg-destructive/5 border border-destructive/15 p-3 text-sm"
-                      >
-                        <span className="font-semibold">{item.character}:</span>{" "}
-                        <span className="italic">&quot;{item.line}&quot;</span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {item.note}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Highlights */}
-                {parsedResult.dialogue.highlights.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Highlights
-                    </p>
-                    {parsedResult.dialogue.highlights.map((item, i) => (
-                      <div
-                        key={i}
-                        className="rounded-md bg-primary/5 border border-primary/15 p-3 text-sm"
-                      >
-                        <span className="font-semibold">{item.character}:</span>{" "}
-                        <span className="italic">&quot;{item.line}&quot;</span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {item.note}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {parsedResult.dialogue.notes && (
-                  <p className="text-xs text-muted-foreground">
-                    {parsedResult.dialogue.notes}
+              {/* On-the-nose */}
+              {parsedResult.dialogue.onTheNose.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    On-the-Nose Dialogue
                   </p>
-                )}
-              </CardContent>
-            </Card>
+                  {parsedResult.dialogue.onTheNose.map((item, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg bg-destructive/5 border border-destructive/15 p-3 text-sm"
+                    >
+                      <span className="font-semibold text-foreground">{item.character}:</span>{" "}
+                      <span className="italic text-foreground">&quot;{item.line}&quot;</span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.note}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Highlights */}
+              {parsedResult.dialogue.highlights.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Highlights
+                  </p>
+                  {parsedResult.dialogue.highlights.map((item, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg bg-primary/5 border border-primary/15 p-3 text-sm"
+                    >
+                      <span className="font-semibold text-foreground">{item.character}:</span>{" "}
+                      <span className="italic text-foreground">&quot;{item.line}&quot;</span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.note}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {parsedResult.dialogue.notes && (
+                <p className="text-xs text-muted-foreground">
+                  {parsedResult.dialogue.notes}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1650,37 +1623,43 @@ export default function ScriptDoctorPage() {
   // ── Main Layout: sidebar + content ──
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 max-w-5xl mx-auto">
+      {/* Skip to content link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
+      >
+        Skip to content
+      </a>
+
       {/* Header */}
-      <div className="mb-6">
+      <header className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <Stethoscope weight="duotone" className="w-7 h-7 text-primary" />
-          <h1 className="text-[28px] font-bold leading-tight">AI Script Doctor</h1>
+          <h1 className="text-[28px] font-bold leading-tight text-foreground">AI Script Doctor</h1>
         </div>
         <p className="text-[13px] text-muted-foreground ml-10">
           Professional-grade screenplay analysis powered by AI
         </p>
-      </div>
+      </header>
 
       {/* Split Layout: Sidebar + Main Content */}
       <div className="flex gap-6">
         {/* Left Sidebar: History */}
-        <aside className="hidden md:block w-[280px] shrink-0">
-          <Card className="sticky top-6 backdrop-blur-sm bg-card/80 border-border/40">
-            <CardContent className="p-4">
-              {renderHistorySidebar()}
-            </CardContent>
-          </Card>
+        <aside className="hidden md:block w-[280px] shrink-0" aria-label="Analysis history">
+          <div className="sticky top-6 bg-card border border-border rounded-xl p-4">
+            {renderHistorySidebar()}
+          </div>
         </aside>
 
         {/* Mobile: History as collapsible section above content */}
         <div className="md:hidden w-full space-y-4">
-          {/* Mobile history toggle -- always visible */}
+          {/* Mobile history toggle */}
           <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer rounded-lg border p-3 hover:bg-accent/40 transition-colors list-none">
+            <summary className="flex items-center justify-between cursor-pointer rounded-lg border border-border p-3 hover:bg-muted transition-colors list-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none">
               <div className="flex items-center gap-2">
                 <ClockCounterClockwise className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium text-foreground">
                   Analysis History ({historyList.length})
                 </span>
               </div>
@@ -1694,17 +1673,19 @@ export default function ScriptDoctorPage() {
                 <path d="M4 6l4 4 4-4" />
               </svg>
             </summary>
-            <div className="mt-2 rounded-lg border p-3">
+            <div className="mt-2 rounded-lg border border-border p-3">
               {renderHistorySidebar()}
             </div>
           </details>
 
           {/* Mobile content */}
-          {pageView === "new" ? renderNewAnalysis() : renderDetailView()}
+          <div id="main-content">
+            {pageView === "new" ? renderNewAnalysis() : renderDetailView()}
+          </div>
         </div>
 
         {/* Desktop Main Content */}
-        <main className="hidden md:block flex-1 min-w-0">
+        <main id="main-content" className="hidden md:block flex-1 min-w-0">
           {pageView === "new" ? renderNewAnalysis() : renderDetailView()}
         </main>
       </div>
@@ -1721,13 +1702,13 @@ export default function ScriptDoctorPage() {
 
       {/* Rewrite Options Modal */}
       <Dialog open={rewriteModalOpen} onOpenChange={setRewriteModalOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto backdrop-blur-md bg-card/95 border-border/40">
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto bg-card border border-border">
           <DialogHeader>
-            <DialogTitle className="text-lg">
+            <DialogTitle className="text-lg text-foreground">
               Choose a Rewrite Option
               {rewriteIssue && (
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  — {rewriteIssue.issue.title}
+                  -- {rewriteIssue.issue.title}
                 </span>
               )}
             </DialogTitle>
@@ -1736,18 +1717,18 @@ export default function ScriptDoctorPage() {
             {rewriteOptions.map((option, idx) => (
               <div
                 key={idx}
-                className="rounded-lg border border-border/40 p-4 space-y-3 hover:border-primary/40 transition-colors"
+                className="rounded-xl border border-border p-4 space-y-3 transition-all duration-200 hover:border-primary hover:shadow-sm"
               >
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold">{option.label || `Option ${idx + 1}`}</h4>
-                  <Badge variant="outline" className="text-[10px]">
+                  <h4 className="text-sm font-semibold text-foreground">{option.label || `Option ${idx + 1}`}</h4>
+                  <Badge variant="outline" className="text-[10px] border-border">
                     {option.elements.length} elements
                   </Badge>
                 </div>
                 {option.synopsis && (
                   <p className="text-xs text-muted-foreground">{option.synopsis}</p>
                 )}
-                <div className="rounded-md bg-muted/30 p-3 max-h-48 overflow-y-auto text-xs space-y-1.5">
+                <div className="rounded-lg bg-muted p-3 max-h-48 overflow-y-auto text-xs space-y-1.5">
                   {option.elements.slice(0, 8).map((el, i) => (
                     <div key={i} className="text-muted-foreground">
                       {el.type === "dialogue" ? (
@@ -1762,20 +1743,18 @@ export default function ScriptDoctorPage() {
                     </div>
                   ))}
                   {option.elements.length > 8 && (
-                    <p className="text-[10px] text-muted-foreground/60">+{option.elements.length - 8} more...</p>
+                    <p className="text-[10px] text-muted-foreground">+{option.elements.length - 8} more...</p>
                   )}
                 </div>
                 <Button
                   size="sm"
-                  className="w-full text-xs gap-1.5"
+                  className="w-full text-xs gap-1.5 focus-visible:ring-2 focus-visible:ring-primary"
                   onClick={() => handleSelectOption(idx)}
                   disabled={applyingOptionIdx !== null}
                 >
                   {applyingOptionIdx === idx ? (
                     <>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                        <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                      </svg>
+                      <Spinner className="w-3 h-3 animate-spin" />
                       Applying...
                     </>
                   ) : (

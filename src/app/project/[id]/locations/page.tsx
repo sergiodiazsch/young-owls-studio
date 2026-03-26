@@ -308,7 +308,7 @@ export default function LocationsPage() {
             <Button
               onClick={handleExtract}
               disabled={extracting}
-              className="relative shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-shadow duration-300"
+              className="relative shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-shadow duration-300"
             >
               {extracting ? (
                 <>
@@ -363,14 +363,14 @@ export default function LocationsPage() {
             <Card
               data-loc-card
               key={loc.id}
-              className="group rounded-xl border backdrop-blur-sm bg-card/80 border-border/40 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
+              className="group rounded-xl border backdrop-blur-sm bg-card/80 border-border/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
               onClick={() =>
                 router.push(`/project/${projectId}/locations/${loc.id}`)
               }
             >
               <CardContent className="p-5">
                 {/* Cover image slot */}
-                <div className="relative w-full aspect-video rounded-lg bg-muted/50 dark:bg-muted/30 flex items-center justify-center mb-3 overflow-hidden border border-border/20 group-hover:border-primary/20 group-hover:shadow-[0_0_10px_oklch(0.585_0.233_264/0.08)] transition-all duration-300">
+                <div className="relative w-full aspect-video rounded-lg bg-muted/50 dark:bg-muted/30 flex items-center justify-center mb-3 overflow-hidden border border-border/20 group-hover:border-primary/20 group-hover:shadow-md transition-all duration-300">
                   {loc.coverImage ? (
                     <Image
                       src={`/api/storage/${loc.coverImage}`}
@@ -392,7 +392,7 @@ export default function LocationsPage() {
                       );
                     })()
                   ) : (
-                    <LocationPinIcon size={28} className="text-muted-foreground/40" />
+                    <LocationPinIcon size={28} className="text-muted-foreground" />
                   )}
                 </div>
 
@@ -422,7 +422,7 @@ export default function LocationsPage() {
 
                 {/* Scene count */}
                 <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
-                  <span className="inline-flex items-center justify-center bg-primary/10 text-primary text-[10px] font-semibold rounded-full px-1.5 py-0 min-w-[20px] shadow-[0_0_6px_oklch(0.585_0.233_264/0.1)]">{loc.sceneCount}</span>
+                  <span className="inline-flex items-center justify-center bg-primary/10 text-primary text-[10px] font-semibold rounded-full px-1.5 py-0 min-w-[20px] shadow-[0_0_6px_var(--glow-primary)]">{loc.sceneCount}</span>
                   scene{loc.sceneCount !== 1 ? "s" : ""}
                 </p>
 

@@ -310,7 +310,7 @@ export default function ColorScriptPage() {
             Color Strip
           </p>
           <TooltipProvider delayDuration={80}>
-            <div className="relative flex rounded-xl overflow-hidden h-16 shadow-[0_0_20px_oklch(0.585_0.233_264/0.08)] border border-border/30">
+            <div className="relative flex rounded-xl overflow-hidden h-16 shadow-[0_0_20px_var(--glow-primary)] border border-border/30">
               {scenes.map((scene, idx) => {
                 const dominantColor =
                   scene.colorData?.dominantColors?.[0]?.hex ||
@@ -487,7 +487,7 @@ export default function ColorScriptPage() {
         <Card className="border-dashed border-2 border-border/40 backdrop-blur-sm bg-card/80">
           <CardContent className="relative flex flex-col items-center justify-center py-20 overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/[0.04] via-transparent to-transparent pointer-events-none" />
-            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 animate-float flex items-center justify-center mb-5 shadow-[0_0_30px_oklch(0.585_0.233_264/0.15)]">
+            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 dark:bg-primary/5 animate-float flex items-center justify-center mb-5 shadow-[0_0_30px_var(--glow-primary)]">
               <svg
                 width="28"
                 height="28"
@@ -544,7 +544,7 @@ export default function ColorScriptPage() {
                 </div>
 
                 {/* Arrow */}
-                <div className="mt-3 text-muted-foreground/40">
+                <div className="mt-3 text-muted-foreground">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
@@ -594,7 +594,7 @@ export default function ColorScriptPage() {
           SCENE DETAIL PANEL
           ═══════════════════════════════════════════════════════════════ */}
       {selectedScene && (
-        <Card className="mb-8 border-border/40 backdrop-blur-sm bg-card/80 shadow-[0_0_20px_oklch(0.585_0.233_264/0.06)]">
+        <Card className="mb-8 border-border/40 backdrop-blur-sm bg-card/80 shadow-[0_0_20px_var(--glow-primary)]">
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div>
@@ -775,9 +775,9 @@ export default function ColorScriptPage() {
                       selectedScene?.sceneId === scene.sceneId ? null : scene
                     )
                   }
-                  className={`group rounded-xl border border-border/40 backdrop-blur-sm bg-card/80 p-3 text-left transition-all duration-300 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.12)] hover:-translate-y-0.5 hover:border-primary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                  className={`group rounded-xl border border-border/40 backdrop-blur-sm bg-card/80 p-3 text-left transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                     selectedScene?.sceneId === scene.sceneId
-                      ? "ring-2 ring-primary border-primary/30 shadow-[0_0_20px_oklch(0.585_0.233_264/0.15)]"
+                      ? "ring-2 ring-primary border-primary/30 shadow-[0_0_20px_var(--glow-primary)]"
                       : ""
                   }`}
                 >
@@ -861,7 +861,7 @@ export default function ColorScriptPage() {
           <p className="text-[14px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-4">
             AI Color Analysis
           </p>
-          <Card className="border-border/40 backdrop-blur-sm bg-card/80 shadow-[0_0_20px_oklch(0.585_0.233_264/0.06)]">
+          <Card className="border-border/40 backdrop-blur-sm bg-card/80 shadow-[0_0_20px_var(--glow-primary)]">
             <CardContent className="p-6">
               <div className="space-y-5">
                 {/* Overall Mood */}

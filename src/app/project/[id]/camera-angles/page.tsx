@@ -331,7 +331,7 @@ function CameraAnglesInner() {
         <p className="text-sm text-muted-foreground text-center max-w-sm mb-5">
           Configure your fal.ai API key in Settings to enable camera angle generation.
         </p>
-        <Button onClick={() => router.push("/settings")} className="shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300">Go to Settings</Button>
+        <Button onClick={() => router.push("/settings")} className="shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300">Go to Settings</Button>
       </div>
     );
   }
@@ -373,7 +373,7 @@ function CameraAnglesInner() {
                   onClick={() => setFilter(key)}
                   className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-300 ${
                     filter === key
-                      ? "bg-primary/15 text-primary shadow-[0_2px_8px_oklch(0.585_0.233_264/0.15)]"
+                      ? "bg-primary/15 text-primary shadow-[0_2px_8px_var(--glow-primary)]"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
@@ -390,7 +390,7 @@ function CameraAnglesInner() {
           <Button
             onClick={() => setPanelOpen(true)}
             size="sm"
-            className="gap-1.5 shrink-0 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300"
+            className="gap-1.5 shrink-0 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M8 3v10M3 8h10" />
@@ -453,8 +453,8 @@ function CameraAnglesInner() {
                     onClick={() => setSelectedShotType(isSelected ? null : shot.id)}
                     className={`group relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-300 ${
                       isSelected
-                        ? "border-primary bg-primary/10 ring-1 ring-primary/50 shadow-[0_0_20px_oklch(0.585_0.233_264/0.15)]"
-                        : "border-border/40 backdrop-blur-sm bg-card/80 hover:border-border hover:bg-muted/80 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+                        ? "border-primary bg-primary/10 ring-1 ring-primary/50 shadow-[0_0_20px_var(--glow-primary)]"
+                        : "border-border/40 backdrop-blur-sm bg-card/80 hover:border-border hover:bg-muted/80 hover:-translate-y-0.5 hover:shadow-md"
                     }`}
                   >
                     <div className={`transition-colors ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}>
@@ -483,7 +483,7 @@ function CameraAnglesInner() {
           </div>
 
           {/* Description field */}
-          <div className="space-y-2 rounded-lg p-3 -mx-3 backdrop-blur-sm bg-muted/30 focus-within:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300">
+          <div className="space-y-2 rounded-lg p-3 -mx-3 backdrop-blur-sm bg-muted/30 focus-within:shadow-[0_0_15px_var(--glow-primary)] transition-all duration-300">
             <Label className="text-muted-foreground text-sm font-medium flex items-center gap-1.5">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted-foreground/30 text-[10px] font-bold text-muted-foreground">3</span>
               Additional Direction
@@ -494,7 +494,7 @@ function CameraAnglesInner() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Slow push-in, golden hour lighting, rack focus to background..."
               rows={2}
-              className="resize-none text-sm bg-card border-border text-foreground placeholder:text-muted-foreground/50"
+              className="resize-none text-sm bg-card border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
@@ -515,7 +515,7 @@ function CameraAnglesInner() {
             <Button
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className="flex-1 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300 disabled:shadow-none"
+              className="flex-1 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300 disabled:shadow-none"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-1.5">
                 <path d="M8 1v3M8 12v3M1 8h3M12 8h3" /><circle cx="8" cy="8" r="3" />
@@ -588,7 +588,7 @@ function CameraAnglesInner() {
                               {items[0]?.model === "era3d" ? "Era3D Multi-View" : "Contact Sheet"}
                             </p>
                             {activeInBatch > 0 && (
-                              <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30 animate-pulse shadow-[0_0_8px_oklch(0.585_0.233_264/0.15)]">
+                              <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30 animate-pulse shadow-[0_0_8px_var(--glow-primary)]">
                                 {completedInBatch}/{items.length} done
                               </Badge>
                             )}
@@ -646,8 +646,8 @@ function CameraAnglesInner() {
                     onClick={() => setEngine(e.id)}
                     className={`text-left rounded-lg border p-3 transition-all duration-300 ${
                       engine === e.id
-                        ? "border-primary bg-primary/10 ring-1 ring-primary/50 shadow-[0_0_12px_oklch(0.585_0.233_264/0.1)]"
-                        : "border-border/40 backdrop-blur-sm bg-card/80 hover:border-border hover:bg-muted/50 hover:-translate-y-0.5 hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+                        ? "border-primary bg-primary/10 ring-1 ring-primary/50 shadow-[0_0_12px_var(--glow-primary)]"
+                        : "border-border/40 backdrop-blur-sm bg-card/80 hover:border-border hover:bg-muted/50 hover:-translate-y-0.5 hover:shadow-md"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -675,7 +675,7 @@ function CameraAnglesInner() {
                     <img
                       src={sourceImagePreview}
                       alt="Source"
-                      className="w-full max-h-48 object-contain rounded-lg border border-border/40 bg-card shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)]"
+                      className="w-full max-h-48 object-contain rounded-lg border border-border/40 bg-card shadow-[0_0_15px_var(--glow-primary)]"
                       loading="lazy"
                     />
                     <button
@@ -688,7 +688,7 @@ function CameraAnglesInner() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Button variant="outline" className="w-full h-16 border-dashed border-border hover:bg-muted hover:shadow-[0_0_15px_oklch(0.585_0.233_264/0.1)] transition-all duration-300" onClick={handleUploadSource}>
+                    <Button variant="outline" className="w-full h-16 border-dashed border-border hover:bg-muted hover:shadow-md transition-all duration-300" onClick={handleUploadSource}>
                       <div className="flex flex-col items-center gap-1">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
                           <path d="M8 10V2M8 2L5 5M8 2L11 5" />
@@ -739,7 +739,7 @@ function CameraAnglesInner() {
                     : "Override prompt (leave empty to use scene + shot type)..."
                 }
                 rows={3}
-                className="resize-none text-sm bg-card border-border text-foreground placeholder:text-muted-foreground/50"
+                className="resize-none text-sm bg-card border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
@@ -775,7 +775,7 @@ function CameraAnglesInner() {
                 onClick={handleGenerate}
                 disabled={!canGenerate}
                 size="lg"
-                className="flex-1 shadow-[0_0_15px_oklch(0.585_0.233_264/0.2)] hover:shadow-[0_0_25px_oklch(0.585_0.233_264/0.3)] transition-all duration-300 disabled:shadow-none"
+                className="flex-1 shadow-[0_0_15px_var(--glow-primary)] hover:shadow-md transition-all duration-300 disabled:shadow-none"
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="mr-1.5">
                   <path d="M8 1v3M8 12v3M1 8h3M12 8h3" /><circle cx="8" cy="8" r="3" />
@@ -804,7 +804,7 @@ function ContactSheetThumbnail({
   projectId: string;
 }) {
   return (
-    <div className="relative group rounded-lg overflow-hidden border border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-[0_0_20px_oklch(0.585_0.233_264/0.15)] hover:scale-[1.02] hover:border-border">
+    <div className="relative group rounded-lg overflow-hidden border border-border/40 backdrop-blur-sm bg-card/80 transition-all duration-300 hover:shadow-md hover:scale-[1.02] hover:border-border">
       <div className="relative aspect-square bg-card">
         {gen.status === "completed" && gen.storagePath ? (
           <Image
@@ -862,7 +862,7 @@ function ContactSheetThumbnail({
           {/* Use in Image Gen button */}
           <a
             href={`/project/${projectId}/generate?ref=${gen.id}`}
-            className="px-2 py-1 rounded bg-primary/90 text-primary-foreground text-[10px] font-medium hover:bg-primary transition-colors flex items-center gap-1 shadow-[0_0_8px_oklch(0.585_0.233_264/0.2)]"
+            className="px-2 py-1 rounded bg-primary/90 text-primary-foreground text-[10px] font-medium hover:bg-primary transition-colors flex items-center gap-1 shadow-[0_0_8px_var(--glow-primary)]"
             onClick={(e) => e.stopPropagation()}
             title="Use this angle as a reference in Image Generation"
           >
