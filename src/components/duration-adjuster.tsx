@@ -524,30 +524,78 @@ export function SceneDurationAdjuster({
   })();
 
   const projectedSec = estimatedDurationSeconds + totalImpact;
+  const estSec = Math.round(estimatedDurationSeconds);
 
   const handleApply = useCallback(async () => {
+    if (!result || selected.size === 0) return;
     setApplying(true);
     try {
+      // 1. Save version backup
       await fetch("/api/versions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: Number(projectId),
           label: `Before scene ${sceneNumber} duration adjustment`,
-          triggerDetail: `Auto-saved before adjusting scene ${sceneNumber} from ${Math.round(estimatedDurationSeconds)}s to ${targetSec}s`,
+          triggerDetail: `Auto-saved before adjusting scene ${sceneNumber} from ${estSec}s to ${targetSec}s`,
         }),
       });
-      toast.success("Version saved. Open this scene in the editor to apply the suggested changes.");
-      onApplied?.();
+
+      // 2. Build a modification prompt from selected options
+      const selectedOpts = result.options.filter((o) => selected.has(o.id));
+      const modPrompt = `Adjust this scene's duration from ~${estSec} seconds to ~${targetSec} seconds by applying these specific changes:\n\n${selectedOpts.map((o, i) => {
+        let detail = `${i + 1}. ${o.label}: ${o.description}`;
+        if (o.changes && o.changes.length > 0) {
+          for (const c of o.changes) {
+            if (c.originalLine && c.suggestedLine) {
+              detail += `\n   - Change "${c.originalLine}" to "${c.suggestedLine}"`;
+            } else {
+              detail += `\n   - ${c.description}`;
+            }
+          }
+        }
+        return detail;
+      }).join("\n\n")}\n\nApply ALL of these changes. Keep the scene's core purpose intact.`;
+
+      // 3. Use scene modify API to rewrite the scene
+      const modRes = await fetch(`/api/scenes/${sceneId}/modify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: modPrompt }),
+      });
+      const modData = await modRes.json();
+      if (modData.error) throw new Error(modData.error);
+
+      // Pick the moderate option (index 1) or first available
+      const option = modData.options?.[1] || modData.options?.[0];
+      if (!option) throw new Error("No modification generated");
+
+      // 4. Apply the modification
+      const applyRes = await fetch(`/api/scenes/${sceneId}/apply-modification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elements: option.elements, synopsis: option.synopsis }),
+      });
+      if (!applyRes.ok) throw new Error("Failed to apply changes");
+
+      // 5. Regenerate breakdown for this scene
+      await fetch("/api/breakdowns/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneId, projectId: Number(projectId) }),
+      }).catch(() => { /* best effort — breakdown regen is async */ });
+
+      toast.success("Scene updated and breakdown regenerating");
+      setResult(null);
+      setSelected(new Set());
       setOpen(false);
-    } catch {
-      toast.error("Failed to save version");
+      onApplied?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply changes");
     } finally {
       setApplying(false);
     }
-  }, [projectId, sceneNumber, estimatedDurationSeconds, targetSec, onApplied]);
-
-  const estSec = Math.round(estimatedDurationSeconds);
+  }, [projectId, sceneId, sceneNumber, estSec, targetSec, result, selected, onApplied]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
