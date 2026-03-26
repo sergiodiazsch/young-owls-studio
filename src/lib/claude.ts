@@ -214,18 +214,22 @@ export async function generateSceneModifications(
   sceneContext: string,
   modificationPrompt: string,
   productionStyle?: string | null,
+  fast?: boolean,
 ): Promise<SceneModificationOption[]> {
   const stylePrompt = getProductionStylePrompt(productionStyle);
   const client = await getAnthropicClient();
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 16000,
-    tool_choice: { type: "tool", name: "scene_modifications" },
-    tools: [SCENE_MODIFICATIONS_TOOL],
-    messages: [
-      {
-        role: "user",
-        content: `You are a screenwriting assistant. Given the current scene and a modification request, generate exactly 3 alternative versions:
+
+  const userPrompt = fast
+    ? `You are a screenwriting assistant. Given the current scene and a modification request, generate exactly 1 modified version labeled "Modified".
+
+CURRENT SCENE:
+${sceneContext}
+
+MODIFICATION REQUEST:
+${modificationPrompt}
+
+Generate 1 option with complete dialogue and direction elements. Preserve element types (dialogue, action, transition, etc.) and proper screenplay formatting. Be concise.${stylePrompt}`
+    : `You are a screenwriting assistant. Given the current scene and a modification request, generate exactly 3 alternative versions:
 
 1. **Conservative** — Minimal changes, stays close to original intent
 2. **Moderate** — Meaningful changes while keeping the core structure
@@ -237,7 +241,17 @@ ${sceneContext}
 MODIFICATION REQUEST:
 ${modificationPrompt}
 
-Generate all 3 options with complete dialogue and direction elements. Preserve element types (dialogue, action, transition, etc.) and proper screenplay formatting.${stylePrompt}`,
+Generate all 3 options with complete dialogue and direction elements. Preserve element types (dialogue, action, transition, etc.) and proper screenplay formatting.${stylePrompt}`;
+
+  const response = await client.messages.create({
+    model: fast ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-20250514",
+    max_tokens: fast ? 4000 : 16000,
+    tool_choice: { type: "tool", name: "scene_modifications" },
+    tools: [SCENE_MODIFICATIONS_TOOL],
+    messages: [
+      {
+        role: "user",
+        content: userPrompt,
       },
     ],
   });

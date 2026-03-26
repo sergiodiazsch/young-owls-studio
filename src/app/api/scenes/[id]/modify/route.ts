@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   } catch {
     return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
   }
-  const { prompt } = body;
+  const { prompt, fast } = body;
 
   // TECH AUDIT FIX: Added prompt validation
   if (!prompt || typeof prompt !== "string") {
@@ -50,7 +50,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   try {
     const project = await getProject(scene.projectId);
-    const options = await generateSceneModifications(context, prompt, project?.productionStyle);
+    const options = await generateSceneModifications(context, prompt, project?.productionStyle, !!fast);
     return NextResponse.json({ options });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to generate modifications";

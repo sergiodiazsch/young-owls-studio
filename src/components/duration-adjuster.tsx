@@ -568,12 +568,12 @@ export function SceneDurationAdjuster({
         return detail;
       }).join("\n\n")}\n\nApply ALL of these changes. Keep the scene's core purpose intact.`;
 
-      // 2b. Use scene modify API to rewrite the scene
+      // 2b. Use scene modify API (fast mode — Haiku) to rewrite the scene
       toast.info("Rewriting scene...");
       const modRes = await fetch(`/api/scenes/${sceneId}/modify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: modPrompt }),
+        body: JSON.stringify({ prompt: modPrompt, fast: true }),
       });
       if (!modRes.ok) {
         const errText = await modRes.text().catch(() => "");
@@ -585,8 +585,8 @@ export function SceneDurationAdjuster({
       const modData = await modRes.json();
       if (modData.error) throw new Error(modData.error);
 
-      // Pick the moderate option (index 1) or first available
-      const option = modData.options?.[1] || modData.options?.[0];
+      // Fast mode returns 1 option, normal returns 3 (pick moderate)
+      const option = modData.options?.[0];
       if (!option) throw new Error("No modification generated");
 
       // 3. Apply the modification
