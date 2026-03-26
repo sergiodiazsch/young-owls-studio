@@ -674,36 +674,6 @@ export default function ProjectOverviewPage() {
                   )}
                 </div>
               )}
-              {/* Production Style selector */}
-              <div className="flex items-center gap-2 mt-3">
-                <FilmScript size={14} className="text-foreground/70 shrink-0" />
-                <span className="text-xs font-medium text-foreground/70">Style:</span>
-                <select
-                  value={project?.productionStyle || "general"}
-                  onChange={async (e) => {
-                    const newStyle = e.target.value;
-                    setProject(prev => prev ? { ...prev, productionStyle: newStyle } : prev);
-                    try {
-                      await fetch(`/api/projects/${projectId}`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ productionStyle: newStyle === "general" ? null : newStyle }),
-                      });
-                      toast.success("Production Style updated");
-                    } catch {
-                      toast.error("Failed to update Production Style");
-                    }
-                  }}
-                  className="bg-card/80 backdrop-blur border border-border rounded-md text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary px-2 py-1 transition-colors"
-                  aria-label="Production Style"
-                >
-                  <option value="general">General</option>
-                  <option value="childrens_animation">Children&apos;s Animation</option>
-                  <option value="documentary">Documentary</option>
-                  <option value="commercial">Commercial / Ad</option>
-                  <option value="music_video">Music Video</option>
-                </select>
-              </div>
             </div>
             {/* Action buttons */}
             <div className="flex items-center gap-2 shrink-0">
@@ -773,6 +743,62 @@ export default function ProjectOverviewPage() {
             href={`/project/${projectId}/versions`}
             icon={<FileText size={18} weight="duotone" />}
           />
+        </div>
+      </div>
+
+      {/* ──────────────────────────────────────────────────────────
+          2.5 PRODUCTION STYLE
+          ────────────────────────────────────────────────────────── */}
+      <div className="pt-6">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <FilmScript size={18} weight="duotone" className="text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Production Style</h2>
+            <span className="text-[11px] text-muted-foreground ml-1">Adapts AI analysis, pacing, and dialogue rules</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+            {([
+              { key: "general", label: "General", icon: "🎬", desc: "Standard screenplay" },
+              { key: "childrens_animation", label: "Children's Animation", icon: "🧸", desc: "Kids TV (ages 2-8)" },
+              { key: "documentary", label: "Documentary", icon: "🎥", desc: "Interview & narration" },
+              { key: "commercial", label: "Commercial / Ad", icon: "📺", desc: "Short-form, high impact" },
+              { key: "music_video", label: "Music Video", icon: "🎵", desc: "Beat-driven, visual-first" },
+            ] as const).map((style) => {
+              const isActive = (project?.productionStyle || "general") === style.key;
+              return (
+                <button
+                  key={style.key}
+                  onClick={async () => {
+                    setProject(prev => prev ? { ...prev, productionStyle: style.key } : prev);
+                    try {
+                      await fetch(`/api/projects/${projectId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ productionStyle: style.key === "general" ? null : style.key }),
+                      });
+                      toast.success(`Style: ${style.label}`);
+                    } catch {
+                      toast.error("Failed to update style");
+                    }
+                  }}
+                  className={`relative flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? "border-primary bg-primary/10 shadow-sm shadow-primary/20"
+                      : "border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/50"
+                  }`}
+                >
+                  <span className="text-xl leading-none">{style.icon}</span>
+                  <span className={`text-xs font-medium leading-tight ${isActive ? "text-primary" : "text-foreground"}`}>{style.label}</span>
+                  <span className="text-[10px] leading-tight text-muted-foreground">{style.desc}</span>
+                  {isActive && (
+                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                      <Check size={10} className="text-primary-foreground" weight="bold" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
