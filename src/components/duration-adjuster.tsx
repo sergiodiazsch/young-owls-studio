@@ -568,12 +568,20 @@ export function SceneDurationAdjuster({
         return detail;
       }).join("\n\n")}\n\nApply ALL of these changes. Keep the scene's core purpose intact.`;
 
-      // 3. Use scene modify API to rewrite the scene
+      // 2b. Use scene modify API to rewrite the scene
+      toast.info("Rewriting scene...");
       const modRes = await fetch(`/api/scenes/${sceneId}/modify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: modPrompt }),
       });
+      if (!modRes.ok) {
+        const errText = await modRes.text().catch(() => "");
+        if (modRes.status === 502 || modRes.status === 504) {
+          throw new Error("Server timed out rewriting the scene — try selecting fewer changes");
+        }
+        try { const e = JSON.parse(errText); throw new Error(e.error || "Failed"); } catch { throw new Error("Failed to rewrite scene"); }
+      }
       const modData = await modRes.json();
       if (modData.error) throw new Error(modData.error);
 
@@ -581,7 +589,8 @@ export function SceneDurationAdjuster({
       const option = modData.options?.[1] || modData.options?.[0];
       if (!option) throw new Error("No modification generated");
 
-      // 4. Apply the modification
+      // 3. Apply the modification
+      toast.info("Applying changes...");
       const applyRes = await fetch(`/api/scenes/${sceneId}/apply-modification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -589,14 +598,14 @@ export function SceneDurationAdjuster({
       });
       if (!applyRes.ok) throw new Error("Failed to apply changes");
 
-      // 5. Regenerate breakdown for this scene
+      // 4. Regenerate breakdown for this scene
       await fetch("/api/breakdowns/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sceneId, projectId: Number(projectId) }),
       }).catch(() => { /* best effort — breakdown regen is async */ });
 
-      toast.success("Scene updated and breakdown regenerating");
+      toast.success("Scene updated — breakdown regenerating");
       setResult(null);
       setSelected(new Set());
       setOpen(false);
