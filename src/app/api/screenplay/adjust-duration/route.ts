@@ -221,8 +221,8 @@ export async function POST(req: Request) {
       const sceneDirection = targetSec < estSeconds ? "shorten" : "lengthen";
 
       const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 6000,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 3000,
         tool_choice: { type: "tool", name: "scene_duration_adjustment" },
         tools: [SCENE_ADJUST_TOOL],
         system: `You are an expert screenplay editor. Analyze this SINGLE SCENE and suggest practical options to ${sceneDirection} it from ~${estSeconds} seconds to ${targetSec} seconds.
@@ -236,10 +236,11 @@ Focus on WITHIN-SCENE adjustments only:
 
 IMPORTANT:
 - Be specific — reference exact dialogue lines and directions
-- Provide at least 3 options with different strategies
+- Provide 3-4 options with different strategies
 - Each option should have a clear impact in seconds
 - Mark risk level honestly
-- Preserve the scene's core dramatic purpose${stylePrompt}`,
+- Preserve the scene's core dramatic purpose
+- Be concise in descriptions — no lengthy explanations${stylePrompt}`,
         messages: [
           {
             role: "user",
