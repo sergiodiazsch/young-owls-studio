@@ -487,19 +487,30 @@ export function SceneDurationAdjuster({
     setResult(null);
     setSelected(new Set());
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
       const res = await fetch("/api/screenplay/adjust-duration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, sceneId, targetDurationSeconds: t }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 504 || res.status === 502) {
+          throw new Error("The server timed out — try again, it sometimes needs a second attempt");
+        }
         throw new Error(data.error || "Analysis failed");
       }
       const data = await res.json();
       setResult(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to analyze scene");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        toast.error("Request timed out — try again");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Failed to analyze scene");
+      }
     } finally {
       setLoading(false);
     }
