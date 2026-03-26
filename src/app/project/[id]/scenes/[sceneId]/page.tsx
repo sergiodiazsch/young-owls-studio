@@ -19,8 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import dynamic from "next/dynamic";
 
-const SceneModifyDialog = dynamic(
-  () => import("@/components/scene-modify-dialog").then((m) => ({ default: m.SceneModifyDialog })),
+const SceneModifyPanel = dynamic(
+  () => import("@/components/scene-modify-dialog").then((m) => ({ default: m.SceneModifyPanel })),
   { ssr: false }
 );
 const DialogueVoicePanel = dynamic(
@@ -389,12 +389,13 @@ export default function SceneDetailPage() {
         />
       </div>
 
-      {/* Modify Dialog */}
-      <SceneModifyDialog
+      {/* Modify Panel */}
+      <SceneModifyPanel
         open={modifyOpen}
         onOpenChange={setModifyOpen}
         sceneId={sceneId}
         projectId={projectId}
+        originalElements={elements}
         onApplied={fetchScene}
       />
 
