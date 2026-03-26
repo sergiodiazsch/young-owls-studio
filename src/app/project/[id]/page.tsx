@@ -675,8 +675,9 @@ export default function ProjectOverviewPage() {
                 </div>
               )}
               {/* Production Style selector */}
-              <div className="flex items-center gap-2 mt-2">
-                <FilmScript size={14} className="text-muted-foreground shrink-0" />
+              <div className="flex items-center gap-2 mt-3">
+                <FilmScript size={14} className="text-foreground/70 shrink-0" />
+                <span className="text-xs font-medium text-foreground/70">Style:</span>
                 <select
                   value={project?.productionStyle || "general"}
                   onChange={async (e) => {
@@ -693,7 +694,7 @@ export default function ProjectOverviewPage() {
                       toast.error("Failed to update Production Style");
                     }
                   }}
-                  className="bg-transparent border-none text-xs text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary rounded px-1 py-0.5 transition-colors"
+                  className="bg-card/80 backdrop-blur border border-border rounded-md text-xs font-medium text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary px-2 py-1 transition-colors"
                   aria-label="Production Style"
                 >
                   <option value="general">General</option>
