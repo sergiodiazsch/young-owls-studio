@@ -34,6 +34,8 @@ export async function POST(req: Request) {
             role: "user",
             content: `You are a professional video editor assistant. Analyze this scene description and suggest optimal cut points, pacing, and transitions.
 
+IMPORTANT: During dialogue, each cut should isolate the speaking character — close-up or over-the-shoulder with the camera behind the listener. Never hold on a wide shot or two-shot where multiple characters' faces are visible while someone is speaking. Cut to separate reaction shots for listeners.
+
 Scene context: ${context || "General scene"}
 User request: ${prompt || "Suggest cuts and transitions"}
 

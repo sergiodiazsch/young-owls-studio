@@ -615,7 +615,8 @@ GUIDELINES:
 - For color grading, cinematic is a safe default if the user doesn't specify.
 - Explain what you did after executing actions.
 - If the user's request is unclear, ask for clarification.
-- Be concise in your responses.`;
+- Be concise in your responses.
+- DIALOGUE SHOT DISCIPLINE: During dialogue sequences, each clip should show only the speaking character's face. Cut between speakers — never hold on a two-shot or group shot where multiple faces are visible while someone is talking. Over-the-shoulder angles are ideal: camera behind the listener, focused on the speaker. Two-shots are reserved for non-dialogue moments only.`;
 
     // Build message history
     const messages: Anthropic.MessageParam[] = [];

@@ -305,6 +305,8 @@ export async function suggestImagePrompt(context: string): Promise<string> {
         role: "user",
         content: `Based on the following screenplay context, suggest a detailed image generation prompt that would create a compelling visual for this scene or character. Focus on cinematographic details, lighting, mood, and composition.
 
+IMPORTANT FRAMING RULE: If the scene involves dialogue, frame the image so only ONE character's face is visible — the speaker. Other characters should be seen from behind, in silhouette, or out of frame. Never show multiple characters' faces in the same image during a dialogue moment. Two-shots and group shots are only appropriate for non-dialogue moments (walking together, establishing spatial relationships, silent emotional beats).
+
 CONTEXT:
 ${context}
 

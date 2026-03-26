@@ -55,6 +55,16 @@ const SCRIPT_ANALYSIS_TOOL: Anthropic.Tool = {
   },
 };
 
+// Universal directing rules applied to ALL productions
+const UNIVERSAL_DIRECTING_RULES = `
+DIALOGUE SHOT DISCIPLINE (apply to ALL productions):
+- When a character SPEAKS, the shot should frame ONLY the speaker's face. Use close-ups or over-the-shoulder shots where non-speaking characters are seen from behind.
+- NEVER plan a dialogue moment as a wide two-shot or group shot with multiple visible faces — this creates visual confusion about who is speaking.
+- Reaction shots should be separate cuts showing just the listener.
+- Two-shots and group shots are for non-dialogue moments only.
+If the screenplay has dialogue exchanges in locations where isolating the speaker would be awkward, suggest direction notes for camera placement.
+`;
+
 // Production style prompts — duplicated from src/lib/production-style.ts
 const PRODUCTION_STYLE_PROMPTS: Record<string, string> = {
   childrens_animation: `
@@ -65,7 +75,8 @@ Apply these rules to ALL analysis:
 - Story structure: clear A-plot, problem in first 30s, age-appropriate stakes, lesson embedded naturally
 - Characters need distinct voice patterns and catchphrases
 - Repetition and callbacks are strengths, not weaknesses
-- Happy/hopeful endings required`,
+- Happy/hopeful endings required
+- DIALOGUE FRAMING: When a character speaks, only their face should be on screen. Other characters seen from behind or out of frame. One face, one voice — kids need clarity about who is talking.`,
   documentary: `
 PRODUCTION STYLE: DOCUMENTARY
 - Longer pacing OK, interview/B-roll rhythm matters
@@ -80,7 +91,7 @@ PRODUCTION STYLE: MUSIC VIDEO
 
 function getSystemPrompt(analysisType: string, customPrompt?: string, productionStyle?: string | null): string {
   const base = `You are an expert screenplay analyst and script doctor. Analyze the screenplay thoroughly and provide actionable feedback.`;
-  const stylePrompt = (productionStyle && PRODUCTION_STYLE_PROMPTS[productionStyle]) || "";
+  const stylePrompt = UNIVERSAL_DIRECTING_RULES + ((productionStyle && PRODUCTION_STYLE_PROMPTS[productionStyle]) || "");
   const prompts: Record<string, string> = {
     full: `${base} Perform a comprehensive analysis covering structure, characters, dialogue, pacing, and themes.${stylePrompt}`,
     structure: `${base} Focus specifically on story structure, act breaks, scene transitions, and narrative flow.${stylePrompt}`,

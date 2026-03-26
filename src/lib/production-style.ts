@@ -33,8 +33,18 @@ export type ProductionStyleKey = keyof typeof PRODUCTION_STYLES;
  * based on the project's production style. Returns empty string for
  * "general" or null/undefined styles.
  */
+// Universal directing rules applied to ALL styles (including "general")
+const UNIVERSAL_DIRECTING_RULES = `
+DIALOGUE SHOT DISCIPLINE (apply to ALL productions):
+- When a character SPEAKS, frame the shot so ONLY the speaking character's face is visible. Use close-ups, medium close-ups, or over-the-shoulder shots where the camera is BEHIND the non-speaking character (showing only the back of their head or shoulder, never their face).
+- NEVER frame a dialogue shot as a wide two-shot or group shot where multiple characters' faces are clearly visible — this creates visual confusion about who is speaking.
+- For REACTION shots of the listener, cut to a separate shot of just the listening character.
+- In scenes with 3+ characters, isolate the speaker in their own shot. Show the group listening in a separate wide where the speaker is NOT visible or is seen from behind.
+- Two-shots and group shots are ONLY for non-dialogue moments: walking together, establishing spatial relationships, physical comedy, or silent emotional beats.
+`;
+
 export function getProductionStylePrompt(style: string | null | undefined): string {
-  if (!style || style === "general") return "";
+  if (!style || style === "general") return UNIVERSAL_DIRECTING_RULES;
 
   const prompts: Record<string, string> = {
     childrens_animation: `
@@ -58,6 +68,7 @@ SHOT PLANNING & FRAMING:
 - Establishing shots are essential — always show WHERE we are before WHAT happens
 - Character eyelines should be clear — kids need to see who is talking to whom
 - Bright, saturated color palettes. High contrast between characters and backgrounds.
+- DIALOGUE FRAMING: When a character speaks, frame the shot so ONLY the speaker's face is visible. Use close-ups or over-the-shoulder angles where other characters are seen from behind. This keeps visual focus clear for young viewers — one face, one voice, no confusion about who is talking. In group scenes, isolate the speaker and cut to a separate reaction shot of listeners.
 
 DIALOGUE & WRITING:
 - Short sentences. 5-10 words per line max.
@@ -118,5 +129,5 @@ Apply these rules to ALL analysis, breakdown, and editing decisions:
 - Transitions can be creative and stylized`,
   };
 
-  return prompts[style] || "";
+  return UNIVERSAL_DIRECTING_RULES + (prompts[style] || "");
 }
