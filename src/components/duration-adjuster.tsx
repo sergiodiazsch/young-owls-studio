@@ -478,8 +478,11 @@ export function SceneDurationAdjuster({
   const [result, setResult] = useState<SceneAdjustResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedOpt, setExpandedOpt] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
 
-  const handleAnalyze = useCallback(async () => {
+  const handleAnalyze = useCallback(async (sec?: number) => {
+    const t = sec ?? targetSec;
+    setTargetSec(t);
     setLoading(true);
     setResult(null);
     setSelected(new Set());
@@ -487,7 +490,7 @@ export function SceneDurationAdjuster({
       const res = await fetch("/api/screenplay/adjust-duration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, sceneId, targetDurationSeconds: targetSec }),
+        body: JSON.stringify({ projectId, sceneId, targetDurationSeconds: t }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -521,8 +524,30 @@ export function SceneDurationAdjuster({
   })();
 
   const projectedSec = estimatedDurationSeconds + totalImpact;
-  const diff = targetSec - estimatedDurationSeconds;
-  const direction = diff < 0 ? "shorten" : "lengthen";
+
+  const handleApply = useCallback(async () => {
+    setApplying(true);
+    try {
+      await fetch("/api/versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: Number(projectId),
+          label: `Before scene ${sceneNumber} duration adjustment`,
+          triggerDetail: `Auto-saved before adjusting scene ${sceneNumber} from ${Math.round(estimatedDurationSeconds)}s to ${targetSec}s`,
+        }),
+      });
+      toast.success("Version saved. Open this scene in the editor to apply the suggested changes.");
+      onApplied?.();
+      setOpen(false);
+    } catch {
+      toast.error("Failed to save version");
+    } finally {
+      setApplying(false);
+    }
+  }, [projectId, sceneNumber, estimatedDurationSeconds, targetSec, onApplied]);
+
+  const estSec = Math.round(estimatedDurationSeconds);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -535,99 +560,96 @@ export function SceneDurationAdjuster({
           Adjust
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="text-base">Adjust Scene {sceneNumber} Duration</SheetTitle>
-          <p className="text-xs text-muted-foreground">Fine-tune this scene&apos;s length with AI suggestions</p>
-        </SheetHeader>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0">
+        <div className="p-6 border-b border-border">
+          <SheetHeader>
+            <SheetTitle className="text-base">Scene {sceneNumber} — {estSec}s</SheetTitle>
+          </SheetHeader>
 
-        <div className="mt-5 space-y-4">
-          {/* Current vs Target */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="bg-muted/30 border-border/40">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Current</p>
-                <p className="text-xl font-bold mt-0.5">{Math.round(estimatedDurationSeconds)}</p>
-                <p className="text-[10px] text-muted-foreground">seconds</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Target</p>
-                <Input
-                  type="number"
-                  min={5}
-                  max={600}
-                  value={targetSec}
-                  onChange={(e) => setTargetSec(Number(e.target.value) || 5)}
-                  className="w-16 h-8 text-center text-xl font-bold border-none bg-transparent p-0 mx-auto"
-                />
-                <p className="text-[10px] text-muted-foreground">seconds</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {diff !== 0 && (
-            <div className="text-center">
-              <Badge variant="outline" className={`text-[10px] ${diff < 0 ? "text-red-500 border-red-500/20" : "text-green-500 border-green-500/20"}`}>
-                {direction === "shorten" ? "Shorten" : "Lengthen"} by {Math.abs(diff)}s
-              </Badge>
-            </div>
-          )}
-
-          {/* Quick targets */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Step 1: Pick a target — one click to analyze */}
+          <p className="text-xs text-muted-foreground mt-3 mb-2">How long should this scene be?</p>
+          <div className="grid grid-cols-3 gap-2">
             {[
-              { label: "-30%", value: Math.round(estimatedDurationSeconds * 0.7) },
-              { label: "-50%", value: Math.round(estimatedDurationSeconds * 0.5) },
-              { label: "30s", value: 30 },
-              { label: "60s", value: 60 },
-              { label: "90s", value: 90 },
-              { label: "+50%", value: Math.round(estimatedDurationSeconds * 1.5) },
+              { label: `${Math.round(estSec * 0.5)}s`, sub: "Half", value: Math.round(estSec * 0.5) },
+              { label: `${Math.round(estSec * 0.7)}s`, sub: "Shorter", value: Math.round(estSec * 0.7) },
+              { label: "30s", sub: "30 sec", value: 30 },
+              { label: "60s", sub: "1 min", value: 60 },
+              { label: "90s", sub: "1.5 min", value: 90 },
+              { label: `${Math.round(estSec * 1.5)}s`, sub: "Longer", value: Math.round(estSec * 1.5) },
             ].map((qt) => (
               <button
-                key={qt.label}
-                onClick={() => setTargetSec(qt.value)}
-                className={`px-2 py-1 rounded-md text-[10px] border transition-all ${targetSec === qt.value ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground/50"}`}
+                key={qt.sub}
+                onClick={() => handleAnalyze(qt.value)}
+                disabled={loading}
+                className="flex flex-col items-center gap-0.5 rounded-lg border border-border p-2.5 text-center transition-all hover:border-primary/50 hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {qt.label}
+                <span className="text-sm font-bold text-foreground">{qt.label}</span>
+                <span className="text-[10px] text-muted-foreground">{qt.sub}</span>
               </button>
             ))}
           </div>
 
-          <Button onClick={handleAnalyze} disabled={loading || targetSec <= 0} className="w-full" size="sm">
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                Analyzing scene...
-              </span>
-            ) : `Analyze & Suggest (${direction})`}
-          </Button>
+          {/* Custom target */}
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-xs text-muted-foreground">Custom:</span>
+            <Input
+              type="number"
+              min={5}
+              max={600}
+              value={targetSec}
+              onChange={(e) => setTargetSec(Number(e.target.value) || 5)}
+              className="w-20 h-7 text-xs text-center"
+            />
+            <span className="text-xs text-muted-foreground">sec</span>
+            <Button onClick={() => handleAnalyze()} disabled={loading || targetSec <= 0} size="sm" className="h-7 text-xs ml-auto">
+              {loading ? "Analyzing..." : "Go"}
+            </Button>
+          </div>
+        </div>
 
-          {/* Results */}
-          {result && (
-            <div className="space-y-4">
-              <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="p-3">
-                  <p className="text-xs font-semibold text-primary">AI Recommendation</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{result.recommendation}</p>
-                </CardContent>
-              </Card>
+        {/* Loading */}
+        {loading && (
+          <div className="p-12 flex flex-col items-center gap-3 text-center">
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Analyzing scene...</p>
+          </div>
+        )}
 
+        {/* Results */}
+        {result && !loading && (
+          <div className="p-6 space-y-4">
+            {/* Recommendation */}
+            <div className="bg-primary/5 rounded-lg border border-primary/20 p-3">
+              <p className="text-xs font-semibold text-primary mb-1">AI Recommendation</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{result.recommendation}</p>
+            </div>
+
+            {/* Options — select which to apply */}
+            <div>
+              <p className="text-xs font-medium text-foreground mb-2">Select changes to apply:</p>
               <div className="space-y-2">
-                {result.options.map((opt) => (
-                  <div key={opt.id}>
-                    <button
-                      onClick={() => toggleOption(opt.id)}
-                      className={`w-full text-left rounded-lg border p-3 transition-all duration-200 ${
-                        selected.has(opt.id)
-                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                          : "border-border/40 hover:border-muted-foreground/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium">{opt.label}</span>
-                        <div className="flex items-center gap-2">
+                {result.options.map((opt) => {
+                  const isSelected = selected.has(opt.id);
+                  return (
+                    <div key={opt.id}>
+                      <button
+                        onClick={() => toggleOption(opt.id)}
+                        className={`w-full text-left rounded-lg border p-3 transition-all duration-200 ${
+                          isSelected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-border hover:border-muted-foreground/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {/* Checkbox indicator */}
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? "border-primary bg-primary" : "border-muted-foreground/30"}`}>
+                            {isSelected && (
+                              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="3">
+                                <path d="M3 8l3 3 7-7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-xs font-medium flex-1">{opt.label}</span>
                           <Badge className={`text-[10px] px-1.5 py-0 border ${RISK_COLORS[opt.riskLevel]}`}>
                             {opt.riskLevel}
                           </Badge>
@@ -635,68 +657,75 @@ export function SceneDurationAdjuster({
                             {opt.impactSeconds > 0 ? "+" : ""}{opt.impactSeconds}s
                           </span>
                         </div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">{opt.description}</p>
-                    </button>
-                    {/* Expandable changes */}
-                    {selected.has(opt.id) && opt.changes && opt.changes.length > 0 && (
-                      <>
-                        <button
-                          onClick={() => setExpandedOpt(expandedOpt === opt.id ? null : opt.id)}
-                          className="w-full text-left mt-1 px-3 py-1 text-[10px] text-primary hover:underline"
-                        >
-                          {expandedOpt === opt.id ? "Hide details" : `Show ${opt.changes.length} changes`}
-                        </button>
-                        {expandedOpt === opt.id && (
-                          <div className="ml-3 mt-1 space-y-1.5 border-l-2 border-primary/20 pl-3">
-                            {opt.changes.map((c, ci) => (
-                              <div key={ci} className="rounded bg-muted/30 p-2 text-[11px]">
-                                <p className="text-muted-foreground">{c.description}</p>
-                                {c.originalLine && (
-                                  <p className="mt-1 line-through text-red-400/70">
-                                    {c.character && <span className="font-semibold">{c.character}: </span>}
-                                    {c.originalLine}
-                                  </p>
-                                )}
-                                {c.suggestedLine && (
-                                  <p className="text-green-400/70">
-                                    {c.character && <span className="font-semibold">{c.character}: </span>}
-                                    {c.suggestedLine}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
+                        <p className="text-[10px] text-muted-foreground leading-relaxed ml-6">{opt.description}</p>
+                      </button>
+                      {/* Details */}
+                      {isSelected && opt.changes && opt.changes.length > 0 && (
+                        <>
+                          <button
+                            onClick={() => setExpandedOpt(expandedOpt === opt.id ? null : opt.id)}
+                            className="w-full text-left mt-1 px-3 py-1 text-[10px] text-primary hover:underline"
+                          >
+                            {expandedOpt === opt.id ? "Hide details" : `Show ${opt.changes.length} line changes`}
+                          </button>
+                          {expandedOpt === opt.id && (
+                            <div className="ml-6 mt-1 space-y-1.5 border-l-2 border-primary/20 pl-3">
+                              {opt.changes.map((c, ci) => (
+                                <div key={ci} className="rounded bg-muted/30 p-2 text-[11px]">
+                                  <p className="text-muted-foreground">{c.description}</p>
+                                  {c.originalLine && (
+                                    <p className="mt-1 line-through text-red-400/70">
+                                      {c.character && <span className="font-semibold">{c.character}: </span>}
+                                      {c.originalLine}
+                                    </p>
+                                  )}
+                                  {c.suggestedLine && (
+                                    <p className="text-green-400/70">
+                                      {c.character && <span className="font-semibold">{c.character}: </span>}
+                                      {c.suggestedLine}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-
-              {/* Projected */}
-              {selected.size > 0 && (
-                <Card className="border-border/40 bg-card/80">
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Projected</span>
-                      <span className="text-sm font-bold">{Math.round(projectedSec)}s</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${Math.abs(projectedSec - targetSec) < 5 ? "bg-green-500" : "bg-primary"}`}
-                        style={{ width: `${Math.min(100, (projectedSec / Math.max(estimatedDurationSeconds, targetSec)) * 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      {selected.size} options selected ({totalImpact > 0 ? "+" : ""}{totalImpact}s)
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
             </div>
-          )}
-        </div>
+
+            {/* Apply bar — always visible when options selected */}
+            {selected.size > 0 && (
+              <div className="sticky bottom-0 bg-card border-t border-border -mx-6 px-6 py-4 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{selected.size} selected</span>
+                  <span className="font-mono font-bold">
+                    {estSec}s <span className="text-muted-foreground mx-1">&rarr;</span> {Math.round(projectedSec)}s
+                    <span className={`ml-1.5 ${totalImpact < 0 ? "text-red-500" : "text-green-500"}`}>
+                      ({totalImpact > 0 ? "+" : ""}{totalImpact}s)
+                    </span>
+                  </span>
+                </div>
+                <Button onClick={handleApply} disabled={applying} className="w-full">
+                  {applying ? "Saving..." : "Save version & apply to scene"}
+                </Button>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Saves a backup, then open the scene to edit with these suggestions
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!result && !loading && (
+          <div className="p-12 text-center">
+            <p className="text-xs text-muted-foreground">Pick a target duration above to get AI suggestions</p>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
